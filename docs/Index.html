@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="" id="html">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title data-i18n="title">Modding Tools</title>
+<!-- i18next für i18n -->
+<script src="https://unpkg.com/i18next@21.6.14/dist/umd/i18next.min.js"></script>
+<script src="https://unpkg.com/i18next-browser-languagedetector@6.1.3/i18nextBrowserLanguageDetector.min.js"></script>
+<script src="https://unpkg.com/react-i18next@11.15.3/dist/commonjs/index.js"></script>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; background: #f0f0f0; }
+  h1 { text-align: center; }
+  .section { background: #fff; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
+  input[type="file"] { display: block; margin-bottom: 10px; }
+  button { padding: 10px 20px; margin-top: 10px; cursor: pointer; }
+  #progress { margin-top: 10px; }
+</style>
+</head>
+<body>
+<h1 data-i18n="header">Modding Tools</h1>
+
+<div class="section" id="nsp-section">
+  <h2 data-i18n="nsp_title">NSP entpacken & ZIP herunterladen</h2>
+  <input type="file" id="nspFile" />
+  <button onclick="uploadNSP()" data-i18n="upload_button">Entpacken & Download</button>
+  <div id="nsp-status"></div>
+</div>
+
+<div class="section" id="nro-section">
+  <h2 data-i18n="nro_title">NRO bearbeiten</h2>
+  <input type="file" id="nroFile" />
+  <button onclick="processNRO()" data-i18n="process_button">NRO verarbeiten</button>
+  <div id="nro-status"></div>
+</div>
+
+<script>
+const apiBaseUrl = 'https://wispbyte.com/client/servers/276bec31/files';
+
+const resources = {
+  en: {
+    translation: {
+      title: "Modding Tools",
+      header: "Modding Tools",
+      nsp_title: "NSP unpack & download ZIP",
+      upload_button: "Unpack & Download",
+      nsp_processing: "Processing NSP...",
+      nsp_done: "Download ready!",
+      nro_title: "Edit NRO",
+      process_button: "Process NRO",
+      nro_processing: "Processing NRO...",
+      nro_done: "Download ready!"
+    }
+  },
+  de: {
+    translation: {
+      title: "Modding-Tools",
+      header: "Modding-Tools",
+      nsp_title: "NSP entpacken & ZIP herunterladen",
+      upload_button: "Entpacken & Download",
+      nsp_processing: "Verarbeite NSP...",
+      nsp_done: "Download bereit!",
+      nro_title: "NRO bearbeiten",
+      process_button: "NRO verarbeiten",
+      nro_processing: "Verarbeite NRO...",
+      nro_done: "Download bereit!"
+    }
+  }
+};
+
+// i18n initialisieren
+i18next
+  .use(i18nextBrowserLanguageDetector)
+  .init({
+    resources,
+    fallbackLng: 'en',
+    detection: {
+      order: ['navigator', 'htmlTag', 'cookie', 'localStorage', 'path', 'subdomain'],
+      caches: []
+    }
+  }, () => {
+    // Sprache im HTML setzen
+    document.documentElement.lang = i18next.language;
+    // Übersetzungen auf alle Elemente anwenden
+    document.querySelectorAll('[data-i18n]').forEach(elem => {
+      const key = elem.getAttribute('data-i18n');
+      elem.innerHTML = i18next.t(key);
+    });
+  });
+
+function uploadNSP() {
+  const fileInput = document.getElementById('nspFile');
+  const file = fileInput.files[0];
+  if (!file) return alert(i18next.t('Please select a NSP file'));
+
+  const statusDiv = document.getElementById('nsp-status');
+  statusDiv.innerHTML = i18next.t('nsp_processing');
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  fetch(`${apiBaseUrl}/nsp/entpacken`, {
+    method: 'POST',
+    body: formData
+  })
+  .then(res => res.blob())
+  .then(blob => {
+    // Download ZIP
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'entpackt.zip';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    statusDiv.innerHTML = i18next.t('nsp_done');
+  })
+  .catch(() => {
+    statusDiv.innerHTML = 'Error!';
+  });
+}
+
+function processNRO() {
+  const fileInput = document.getElementById('nroFile');
+  const file = fileInput.files[0];
+  if (!file) return alert(i18next.t('Please select an NRO file'));
+
+  const statusDiv = document.getElementById('nro-status');
+  statusDiv.innerHTML = i18next.t('nro_processing');
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  fetch(`${apiBaseUrl}/nro/verarbeiten`, {
+    method: 'POST',
+    body: formData
+  })
+  .then(res => res.blob())
+  .then(blob => {
+    // Download verarbeitete NRO
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bearbeitet.nro';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    statusDiv.innerHTML = i18next.t('nro_done');
+  })
+  .catch(() => {
+    statusDiv.innerHTML = 'Error!';
+  });
+}
+</script>
+</body>
+</html>

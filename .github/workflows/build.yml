@@ -8,40 +8,26 @@ on:
 
 jobs:
   build:
-    name: Build NRO (devkitPro)
+    name: Build NRO (prebuilt image)
     runs-on: ubuntu-latest
     permissions:
       contents: read
     container:
-      image: devkitpro/devkita64:latest
+      image: ghcr.io/${{ github.repository_owner }}/devkita64-pkmswitch:latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Install Switch portlibs with retry/backoff (continue on failure for fallback build)
-      - name: Install Switch portlibs
-        id: install_portlibs
-        continue-on-error: true
-        run: |
-          chmod +x ci/dkp-pacman-install.sh
-          ci/dkp-pacman-install.sh switch-sdl2 switch-mesa
-
-      # Build the NRO (Makefile will auto-fetch ImGui via ensure-imgui).
-      # If portlib install failed, attempt a fallback build using packages already
-      # present in the container image. The job still fails if make itself fails.
       - name: Build PKMswitch.nro
         run: |
-          set -euo pipefail
-          if [ "${{ steps.install_portlibs.outcome }}" = "failure" ]; then
-            echo "::warning::Portlib install failed — entering fallback build mode. Using packages already present in the container image."
-          fi
+          set -eux
           cd "${GITHUB_WORKSPACE}"
           make
 
-      # Package build outputs into a release zip
       - name: Package Release zip
         run: |
+          set -eux
           cd "${GITHUB_WORKSPACE}"
           mkdir -p Release
           ZIP_NAME="Release/PKMswitch_${GITHUB_SHA}.zip"
@@ -52,7 +38,6 @@ jobs:
           echo "Created ${ZIP_NAME}"
           ls -lh Release/
 
-      # Upload the release zip as a build artifact
       - name: Upload Release zip artifact
         uses: actions/upload-artifact@v4
         with:

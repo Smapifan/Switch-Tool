@@ -29,12 +29,22 @@ jobs:
 
       # Fetch Dear ImGui source (not tracked in git)
       - name: Fetch Dear ImGui
+        working-directory: ${{ github.workspace }}
         run: |
           git clone --depth=1 --branch v1.91.6 \
-              https://github.com/ocornut/imgui.git imgui
+            https://github.com/ocornut/imgui.git imgui
+
+      # Sanity check: ensure imgui exists where Makefile expects it (./imgui)
+      - name: Verify ImGui folder
+        working-directory: ${{ github.workspace }}
+        run: |
+          test -d ./imgui
+          test -f ./imgui/imgui.cpp
+          ls -la ./imgui | head -n 50
 
       # Build the NRO
       - name: Build PKMswitch.nro
+        working-directory: ${{ github.workspace }}
         run: make
 
       # Upload the .nro as a build artifact

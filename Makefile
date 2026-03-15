@@ -148,9 +148,10 @@ ensure-imgui:
 
 all: ensure-imgui $(BUILD)
 
+# Un-muted build step so CI logs show what happens if build fails / is skipped
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
-	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
+	$(MAKE) -C $(BUILD) -f $(CURDIR)/Makefile V=1
 
 clean:
 	@echo Cleaning...

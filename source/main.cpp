@@ -131,7 +131,7 @@ int main(int argc, char* argv[]) {
     appState.termsAccepted = loadTermsAccepted();
     appState.nroDir        = nroDir;
 
-    // ── Determine starting screen ──────────────────────────────────────
+    // ── Determine starting screen ─────────��────────────────────────────
     if (!pluginOk) {
         appState.screen = AppScreen::PLUGIN_ERROR;
     } else if (!appState.termsAccepted) {

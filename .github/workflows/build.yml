@@ -13,7 +13,8 @@ jobs:
     permissions:
       contents: read
     container:
-      image: ghcr.io/${{ github.repository_owner }}/devkita64-pkmswitch:latest
+      # Must be lowercase
+      image: ghcr.io/smapifan/devkita64-pkmswitch:latest
 
     steps:
       - name: Checkout repository
@@ -30,17 +31,17 @@ jobs:
           set -eux
           cd "${GITHUB_WORKSPACE}"
           mkdir -p Release
-          ZIP_NAME="Release/PKMswitch_${GITHUB_SHA}.zip"
-          INCLUDE_PATHS="PKMswitch.nro assets/"
-          if [ -d i18n ]; then INCLUDE_PATHS="${INCLUDE_PATHS} i18n/"; fi
-          if [ -d plugin ]; then INCLUDE_PATHS="${INCLUDE_PATHS} plugin/"; fi
-          zip -r "${ZIP_NAME}" ${INCLUDE_PATHS}
-          echo "Created ${ZIP_NAME}"
-          ls -lh Release/
+          ZIP_NAME="PKMswitch_${GITHUB_SHA}.zip"
+          zip -r "Release/${ZIP_NAME}" \
+            PKMswitch.nro \
+            assets \
+            i18n \
+            plugin || true
+          ls -la Release
 
-      - name: Upload Release zip artifact
+      - name: Upload Release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PKMswitch-release
+          name: PKMswitch-Release
           path: Release/*.zip
           if-no-files-found: error

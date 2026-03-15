@@ -92,6 +92,8 @@ export HFILES_BIN   := $(patsubst %.bin.o,%.bin.h,$(filter %.bin.o,$(OFILES_BIN)
 
 export INCLUDE := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
                   $(foreach dir,$(LIBDIRS),-I$(dir)/include)     \
+                  -I$(DEVKITPRO)/portlibs/switch/include         \
+                  -I$(DEVKITPRO)/portlibs/switch/include/SDL2    \
                   -I$(CURDIR)/$(BUILD)
 
 export LIBPATHS := $(foreach dir,$(LIBDIRS),-L$(dir)/lib)

@@ -2,7 +2,7 @@
 .SUFFIXES:
 #-------------------------------------------------------------------------------
 
-# Ensure `make` builds the actual project by default (not the first helper target)
+# Ensure `make` builds the project by default (not the first helper target)
 .DEFAULT_GOAL := all
 
 #-------------------------------------------------------------------------------
@@ -42,10 +42,9 @@ ICON        := assets/icon.png
 ARCH := -march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE
 
 # ImGui / Switch-specific defines:
-# - Disable default file/OS helpers that may call POSIX (execvp/waitpid, etc.)
-#   These are not available on Horizon.
-DEFINES  := -DIMGUI_DISABLE_DEFAULT_FILE_FUNCTIONS \
-            -DIMGUI_DISABLE_DEFAULT_SHELL_FUNCTIONS \
+# - Keep shell helpers disabled to avoid POSIX symbols (execvp/waitpid).
+# - DO NOT disable default file functions: it breaks imgui.cpp unless you provide replacements.
+DEFINES  := -DIMGUI_DISABLE_DEFAULT_SHELL_FUNCTIONS \
             -DIMGUI_DISABLE_DEFAULT_CLIPBOARD_FUNCTIONS
 
 CFLAGS   := -g -Wall -O2 -ffunction-sections $(ARCH) $(DEFINES)
@@ -99,7 +98,7 @@ export OFILES_SRC   := $(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
 export OFILES       := $(OFILES_BIN) $(OFILES_SRC)
 export HFILES_BIN   := $(patsubst %.bin.o,%.bin.h,$(filter %.bin.o,$(OFILES_BIN)))
 
-# Add explicit SDL2 include paths (helps <SDL.h> resolution in ImGui backend)
+# SDL2 include paths so <SDL.h> works for imgui backends
 export INCLUDE := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
                   $(foreach dir,$(LIBDIRS),-I$(dir)/include)     \
                   -I$(DEVKITPRO)/portlibs/switch/include         \
@@ -107,7 +106,6 @@ export INCLUDE := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
                   -I$(CURDIR)/$(BUILD)
 
 export LIBPATHS := $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
-
 export BUILD_EXEFS_SRC := $(TOPDIR)/$(EXEFS_SRC)
 
 ifeq ($(strip $(ICON)),)
@@ -141,7 +139,6 @@ endif
 
 .PHONY: $(BUILD) clean all fetch-imgui ensure-imgui
 
-# Auto-fetch ImGui before building (CI-safe)
 IMGUI_TAG ?= v1.91.6
 ensure-imgui:
 	@if [ ! -f imgui/imgui.h ]; then \
@@ -161,14 +158,10 @@ clean:
 	@echo Cleaning...
 	@rm -fr $(BUILD) $(TARGET).elf $(TARGET).nacp $(TARGET).nro
 
-# Optional manual fetch
 fetch-imgui: ensure-imgui
 
 else
 
-#-------------------------------------------------------------------------------
-# Per-object build rules (inside the BUILD directory)
-#-------------------------------------------------------------------------------
 DEPENDS := $(OFILES:.o=.d)
 
 all: $(OUTPUT).nro

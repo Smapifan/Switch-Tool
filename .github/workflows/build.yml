@@ -20,28 +20,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build PKMswitch.nro
+      - name: Build and assemble SD card layout
         run: |
           set -eux
           cd "${GITHUB_WORKSPACE}"
-          make
+          bash ci/dist.sh
 
-      - name: Package Release zip
+      - name: Package SD card zip
         run: |
           set -eux
           cd "${GITHUB_WORKSPACE}"
           mkdir -p Release
           ZIP_NAME="PKMswitch_${GITHUB_SHA}.zip"
-          zip -r "Release/${ZIP_NAME}" \
-            PKMswitch.nro \
-            assets \
-            i18n \
-            plugin || true
+          cd dist
+          zip -r "../Release/${ZIP_NAME}" sdmc
+          cd ..
           ls -la Release
 
-      - name: Upload Release artifact
+      - name: Upload SD card artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PKMswitch-Release
+          name: PKMswitch-sdmc
           path: Release/*.zip
           if-no-files-found: error

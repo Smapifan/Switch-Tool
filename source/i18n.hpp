@@ -6,19 +6,37 @@
  * @file i18n.hpp
  * @brief Minimal i18n loader for PKMswitch.
  *
- * Loads assets/i18n.json (via RomFS) and exposes a single t() lookup.
- * All UI strings are stored in assets/i18n.json – the single source of truth.
+ * Loads per-language JSON files from the `i18n/` directory in RomFS.
+ * Each file is named after its locale code:
+ *   `default.json` → "en"
+ *   `de.json`, `fr.json`, `es.json`, `pt.json`, `it.json`, `ja.json`
+ *
+ * Format of each per-language file:
+ *   { "key": "value", ... }
  */
 
 namespace I18n {
 
 /**
- * Load translations from the given JSON file path.
- * Expected format: { "lang": { "key": "value", ... }, ... }
+ * Load all translations from a directory.
+ * Reads `<dir>/default.json` (→ "en"), `<dir>/de.json`, `<dir>/fr.json`,
+ * `<dir>/es.json`, `<dir>/pt.json`, `<dir>/it.json`, `<dir>/ja.json`.
  * Call once after romfsInit().
- * @param path  RomFS path, e.g. "romfs:/i18n.json"
+ * @param dir  Path to the directory, e.g. "romfs:/i18n"
+ */
+void loadDirectory(const char* dir);
+
+/**
+ * Load translations from a single legacy JSON file (kept for tooling/testing).
+ * Expected format: { "lang": { "key": "value", ... }, ... }
+ * @param path  Path to the JSON file
  */
 void load(const char* path);
+
+/**
+ * Return true if at least one language was successfully loaded.
+ */
+bool hasAnyLanguage();
 
 /**
  * Set the active language using a BCP-47-style two-letter code (e.g. "de", "ja").
@@ -29,7 +47,6 @@ void setLanguage(const std::string& lang);
 /**
  * Auto-detect the Switch system language and activate the matching locale.
  * Falls back to "en" on any error.
- * Requires setInitialize() to have been called beforehand.
  */
 void detectSystemLanguage();
 

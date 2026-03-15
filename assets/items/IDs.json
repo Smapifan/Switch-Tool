@@ -1,0 +1,12 @@
+[
+  { "ID": "0001", "Texture": "medicine_potion.png",       "Name": "Potion",       "Category": "medicine" },
+  { "ID": "0002", "Texture": "medicine_superpotion.png",  "Name": "Super Potion", "Category": "medicine" },
+  { "ID": "0003", "Texture": "medicine_hyperpotion.png",  "Name": "Hyper Potion", "Category": "medicine" },
+  { "ID": "0004", "Texture": "medicine_maxpotion.png",    "Name": "Max Potion",   "Category": "medicine" },
+  { "ID": "0005", "Texture": "medicine_fullrestore.png",  "Name": "Full Restore", "Category": "medicine" },
+  { "ID": "0006", "Texture": "medicine_antidote.png",     "Name": "Antidote",     "Category": "medicine" },
+  { "ID": "0007", "Texture": "medicine_burnheal.png",     "Name": "Burn Heal",    "Category": "medicine" },
+  { "ID": "0008", "Texture": "medicine_iceheal.png",      "Name": "Ice Heal",     "Category": "medicine" },
+  { "ID": "0009", "Texture": "medicine_awakening.png",    "Name": "Awakening",    "Category": "medicine" },
+  { "ID": "0010", "Texture": "medicine_paralyzeheal.png", "Name": "Paralyze Heal","Category": "medicine" }
+]

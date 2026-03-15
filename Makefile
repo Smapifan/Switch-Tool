@@ -48,7 +48,7 @@ ASFLAGS  := -g $(ARCH)
 LDFLAGS   = -specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) \
             -Wl,-Map,$(notdir $*.map)
 
-LIBS := -lSDL2 -lEGL -lglapi -ldrm_nouveau -lnx
+LIBS := -lcurl -lmbedtls -lmbedx509 -lmbedcrypto -lSDL2 -lEGL -lglapi -ldrm_nouveau -lnx
 
 #-------------------------------------------------------------------------------
 # Library search paths

@@ -1,0 +1,13 @@
+[
+  { "ID": "0001", "Texture": "001.png", "Name": "Bulbasaur",   "Category": "pokemon" },
+  { "ID": "0004", "Texture": "004.png", "Name": "Charmander",  "Category": "pokemon" },
+  { "ID": "0007", "Texture": "007.png", "Name": "Squirtle",    "Category": "pokemon" },
+  { "ID": "0025", "Texture": "025.png", "Name": "Pikachu",     "Category": "pokemon" },
+  { "ID": "0133", "Texture": "133.png", "Name": "Eevee",       "Category": "pokemon" },
+  { "ID": "0150", "Texture": "150.png", "Name": "Mewtwo",      "Category": "pokemon" },
+  { "ID": "0151", "Texture": "151.png", "Name": "Mew",         "Category": "pokemon" },
+  { "ID": "0802", "Texture": "802.png", "Name": "Marshadow",   "Category": "pokemon" },
+  { "ID": "0898", "Texture": "898.png", "Name": "Calyrex",     "Category": "pokemon" },
+  { "ID": "1008", "Texture": "1008.png","Name": "Koraidon",    "Category": "pokemon" },
+  { "ID": "1009", "Texture": "1009.png","Name": "Miraidon",    "Category": "pokemon" }
+]

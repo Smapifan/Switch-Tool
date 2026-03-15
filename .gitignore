@@ -22,3 +22,13 @@ imgui/
 
 # Runtime / test artifacts
 *.log
+
+# Plugin build output
+plugin/AssetLoader/build/
+
+# Runtime-generated backup ZIPs (the backup/ folder itself is tracked via README)
+backup/*.zip
+
+# Runtime-generated IDs.txt (regenerated on every launch)
+assets/**/IDs.txt
+assets/Version.txt.local

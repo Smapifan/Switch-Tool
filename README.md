@@ -1,8 +1,9 @@
 # PKMswitch
 
-**PKMswitch** is a Nintendo Switch homebrew NRO application – a Pokémon save-file editor shell built with [Dear ImGui](https://github.com/ocornut/imgui) and SDL2 on top of [devkitPro/libnx](https://github.com/switchbrew/libnx).
+**PKMswitch** is a Nintendo Switch homebrew NRO application – a PKHeX-style Pokémon save-file editor built with [Dear ImGui](https://github.com/ocornut/imgui) and SDL2 on top of [devkitPro/libnx](https://github.com/switchbrew/libnx).
 
-> **Status:** UI foundation & plugin system complete – individual editor tabs (Box, Party, Items, Trainer, Pokédex) are placeholders awaiting game-specific save-format implementations.
+> **Status:** UI foundation, multi-screen flow, all editor tabs, asset download/update plugin, user selection, game selection with automatic save backup, IDs.json discovery, and i18n multi-language support are all implemented.  
+> Individual save-format parsers for each game (the actual byte-level Pokémon data) are architecture-ready placeholders awaiting game-specific implementations.
 
 ---
 
@@ -10,10 +11,11 @@
 
 1. [Features](#features)
 2. [Installation on your Switch](#installation-on-your-switch)
-3. [Plugin / data-pack specification](#plugin--data-pack-specification)
-4. [Building from source](#building-from-source)
-5. [CI / GitHub Actions](#ci--github-actions)
-6. [Project structure](#project-structure)
+3. [AssetLoader plugin](#assetloader-plugin)
+4. [Plugin / data-pack specification](#plugin--data-pack-specification)
+5. [Building from source](#building-from-source)
+6. [CI / GitHub Actions](#ci--github-actions)
+7. [Project structure](#project-structure)
 
 ---
 
@@ -21,12 +23,23 @@
 
 | Feature | Details |
 |---|---|
-| **Plugin-required first boot** | App checks for `PKMswitch.plugin/` next to the `.nro`; shows an error screen with the expected path if it is missing. |
-| **Terms & Conditions screen** | User must scroll to the end of the terms before the "Accept" button is enabled (scroll-to-end requirement). |
-| **Applet-mode detection** | Detects whether the app is running with limited RAM (Album applet mode) and prompts the user to relaunch with full RAM. |
-| **Main editor shell** | Tab bar with placeholders: Box · Party · Items · Trainer · Pokédex · Misc. |
-| **i18n** | All UI text lives in a single file: `assets/i18n.json`. System language is detected automatically. Supported: `en` `de` `fr` `es` `it` `ja`. |
-| **Icon** | `icon.png` (256 × 256) is wired into the NRO via `--icon`. |
+| **Applet-mode detection** | On first launch from the Album applet the app shows a **warning-only** screen: *"This application must be started in Application Mode with full RAM access."* No continue button – only Exit. |
+| **User selection** | Enumerates all Switch user accounts via `accountListAllUsers`. Only games that have save data for the chosen user are shown. |
+| **Game selection with backup** | Lists only Pokémon games with save data for the selected user. Every time a game is selected, a ZIP backup is automatically created in `backup/` (format: `<username> YYYY_MM_DD_HH_mm_ss.zip`). |
+| **AssetLoader plugin** | Companion plugin (`plugin/AssetLoader/`) that downloads the full `assets/` bundle on first run, checks for updates on every launch using a remote `Version.txt`, and shows animated progress bars (*Download Data* + *Initialise data*). Requires Wi-Fi on first run. |
+| **Main editor – 10 tabs** | **Box** · **Party** · **Items** · **Trainer** · **Raids** (SwSh/SV) · **Donuts** (ZA) · **Events** · **Pokédex** · **Encounter DB** · **Event DB** – exactly mirroring PKHeX's layout. |
+| **Pokémon editor (left panel)** | Editable: Species, Level, Nature, Ability, Item, IVs (0–31 each), EVs (0–252 each), 4 moves, PID, TID, SID. Legality indicator (placeholder; architecture is ready for PKHeX-compatible checks). |
+| **Items tab** | Categorised item list with per-item count editor, delete button, and "Give all items" with custom quantity. |
+| **Trainer tab** | Name, TID/SID, Money, Badges, game-specific fields (BP for SwSh/SV, LP for Legends: Arceus). |
+| **Raids tab** | Raid injector with star-count selector and an Event-raid mode. |
+| **Donuts tab** | Legends Z-A dimensional Donut management. |
+| **Events tab** | Mystery Gift / Wonder Card importer. |
+| **Pokédex tab** | Searchable Pokédex placeholder table. |
+| **Encounter DB tab** | Encounter table with species / level / location / rate columns and an Inject button. |
+| **Event DB tab** | Notable Pokémon distribution list (Manaphy Egg, Shiny Koraidon, …) with per-row Inject. |
+| **IDs.json discovery** | Recursively scans `assets/*/IDs.json` through `assets/*/*/*/*/*/IDs.json` (5 levels deep). Generates a human-readable `IDs.txt` alongside each JSON. |
+| **i18n** | Per-language JSON files in `assets/i18n/`: `default.json` (en), `de.json`, `fr.json`, `es.json`, `pt.json`. System language is detected automatically; falls back to English. |
+| **Terms & Conditions screen** | Must scroll to end before Accept is enabled. Accepted flag persisted to `sdmc:/switch/PKMswitch/.terms_accepted`. |
 
 ---
 
@@ -34,107 +47,86 @@
 
 ### 1. Copy the NRO
 
-Place `PKMswitch.nro` anywhere on your SD card that the homebrew menu can reach, for example:
-
 ```
 sdmc:/switch/PKMswitch/PKMswitch.nro
 ```
 
-### 2. Install the data plugin (required)
+### 2. Install the AssetLoader plugin (required for assets on first run)
+
+See [AssetLoader plugin](#assetloader-plugin).
+
+### 3. Install the data plugin (required)
 
 The data plugin **must** be placed in the **same directory** as `PKMswitch.nro`:
 
 ```
 sdmc:/switch/PKMswitch/
 ├── PKMswitch.nro          ← the application
-└── PKMswitch.plugin/      ← the data plugin (required)
-    ├── manifest.json      ← plugin descriptor (required)
-    ├── strings.json       ← game-string translations (optional)
-    └── icons/             ← sprite assets (optional)
-        ├── pokemon/       ← <species>_<form>.png  (e.g. 0006_000.png)
-        ├── items/         ← <id>.png              (e.g. 00001.png)
-        ├── moves/         ← <id>.png
-        └── types/         ← <id>.png
+├── PKMswitch.plugin/      ← the data plugin (required)
+│   ├── manifest.json
+│   └── ...
+├── assets/                ← downloaded by AssetLoader on first run
+│   ├── Version.txt
+│   ├── i18n/
+│   ├── icons/
+│   └── ...
+└── backup/                ← auto-created; one ZIP per save session
 ```
 
-> The app will **not start** (shows an error screen) if `PKMswitch.plugin/` or its `manifest.json` is missing.
+### 4. Launch
 
-### 3. Launch
-
-Launch PKMswitch from the homebrew menu.
-
-For **full RAM mode** (recommended):
+For **full RAM mode** (required):
 1. Start any game.
 2. Hold **R** while selecting PKMswitch from the homebrew menu overlay.
 
 ---
 
+## AssetLoader plugin
+
+The `plugin/AssetLoader/` directory contains the companion plugin source code.
+
+### Behaviour
+
+| Phase | Condition | Screen |
+|---|---|---|
+| **Check for updates** | Always | Fetches remote `Version.txt` from GitHub |
+| **Download Data** | First run or outdated assets | Progress bar |
+| **Initialise data** | Always after download (or if up-to-date) | Progress bar |
+
+- On **first run** (no local `assets/Version.txt`) Wi-Fi is **required**. The app shows an error if Wi-Fi is unavailable.
+- On subsequent runs, if Wi-Fi is absent, the update check is skipped and existing local assets are used.
+
+### URLs (hardcoded in `source/asset_loader.hpp`)
+
+```
+REMOTE_VERSION_URL = https://raw.githubusercontent.com/Smapifan/Switch-Tool/main/assets/Version.txt
+REMOTE_ASSETS_ZIP_URL = https://github.com/Smapifan/Switch-Tool/releases/latest/download/assets.zip
+```
+
+### `assets/Version.txt` format
+
+```
+Version: 1.0
+Published on: 2025-01-01
+Downloaded on: 2025/06/15/14/32/10
+```
+
+---
+
 ## Plugin / data-pack specification
 
-### Directory layout
-
-```
-PKMswitch.plugin/
-├── manifest.json          ← REQUIRED
-├── strings.json           ← optional: game strings (all languages in one file)
-└── icons/
-    ├── pokemon/<species>_<form>.png
-    ├── items/<id>.png
-    ├── moves/<id>.png
-    └── types/<id>.png
-```
-
-Species / form IDs use zero-padded decimal: `0006_001.png` = Charizard form 1.  
-Item / move / type IDs use zero-padded 5-digit decimal: `00001.png`.
-
-### `manifest.json` schema
+### `PKMswitch.plugin/manifest.json`
 
 ```json
 {
-  "pluginId":      "my_lgpe_plugin",
+  "pluginId":      "my_plugin",
   "formatVersion": 1,
   "version":       1,
   "author":        "YourName",
-  "games": [
-    "010003F003A34000"
-  ],
-  "content": [
-    "strings",
-    "icons.pokemon",
-    "icons.items",
-    "icons.moves",
-    "icons.types"
-  ]
+  "games": ["010003F003A34000"],
+  "content": ["strings", "icons.pokemon", "icons.items"]
 }
 ```
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `pluginId` | string | **yes** | Unique identifier for this plugin |
-| `formatVersion` | integer | **yes** | Must be `1` for the current spec |
-| `version` | integer | **yes** | Your plugin's data version |
-| `author` | string | no | Plugin author name |
-| `games` | string[] | no | Title-IDs this plugin targets |
-| `content` | string[] | no | List of provided asset types |
-
-The app validates `pluginId` (non-empty) and `formatVersion == 1`; all other fields are informational.
-
-### `strings.json` format (optional)
-
-```json
-{
-  "en": {
-    "species.0001": "Bulbasaur",
-    "move.0001":    "Pound",
-    "item.0001":    "Master Ball"
-  },
-  "de": {
-    "species.0001": "Bisasam"
-  }
-}
-```
-
-The app falls back to English if a key is missing in the active language, and shows the raw key if missing from English too.
 
 ---
 
@@ -143,34 +135,27 @@ The app falls back to English if a key is missing in the active language, and sh
 ### Prerequisites
 
 - [devkitPro](https://devkitpro.org/wiki/Getting_Started) with **devkitA64** and **libnx**
-- devkitPro package: `switch-sdl2`  
+- devkitPro packages: `switch-sdl2`, `switch-mesa`, `switch-libdrm-nouveau`, `switch-curl`
   ```bash
-  sudo dkp-pacman -S switch-sdl2 switch-mesa switch-libdrm-nouveau
+  sudo dkp-pacman -S switch-sdl2 switch-mesa switch-libdrm-nouveau switch-curl
   ```
-- Dear ImGui source (fetched with the helper target, see below)
+- Dear ImGui (fetched with `make fetch-imgui`)
 
 ### Steps
 
 ```bash
-# 1. Clone this repository
+# 1. Clone
 git clone https://github.com/Smapifan/Switch-Tool.git
 cd Switch-Tool
 
-# 2. Fetch Dear ImGui (not tracked in git)
+# 2. Fetch Dear ImGui
 make fetch-imgui
-# or manually:
-# git clone --depth=1 --branch v1.91.6 https://github.com/ocornut/imgui.git imgui
 
-# 3. Build
+# 3. Build main NRO
 make
 
-# Output: PKMswitch.nro
-```
-
-### Clean
-
-```bash
-make clean
+# 4. (Optional) Build AssetLoader plugin
+cd plugin/AssetLoader && make
 ```
 
 ---
@@ -179,13 +164,11 @@ make clean
 
 The workflow in `.github/workflows/build.yml`:
 
-1. Checks out the repository using the **devkitpro/devkita64** Docker image.
-2. Installs `switch-sdl2`, `switch-mesa`, `switch-libdrm-nouveau` via `dkp-pacman`.
+1. Uses the **devkitpro/devkita64** Docker image.
+2. Installs `switch-sdl2 switch-mesa switch-libdrm-nouveau switch-curl` via `dkp-pacman`.
 3. Clones Dear ImGui at the pinned tag.
 4. Runs `make`.
 5. Uploads `PKMswitch.nro` as the **PKMswitch-nro** artifact.
-
-The artifact is available for download from the Actions tab after every successful build.
 
 ---
 
@@ -193,25 +176,48 @@ The artifact is available for download from the Actions tab after every successf
 
 ```
 Switch-Tool/
-├── .github/workflows/build.yml   ← CI workflow
+├── .github/workflows/build.yml
 ├── assets/
-│   └── i18n.json                 ← ALL UI strings (single source of truth)
+│   ├── Version.txt              ← asset bundle version (managed by AssetLoader)
+│   ├── i18n/
+│   │   ├── default.json         ← English
+│   │   ├── de.json              ← German
+│   │   ├── fr.json              ← French
+│   │   ├── es.json              ← Spanish
+│   │   └── pt.json              ← Portuguese
+│   ├── icons/
+│   │   ├── games/               ← game cover icons (downloaded)
+│   │   ├── pokemon/             ← Pokémon sprite icons
+│   │   └── items/               ← item icons
+│   ├── items/
+│   │   └── IDs.json             ← item ID-to-texture mapping
+│   └── pokemon/
+│       └── IDs.json             ← Pokémon ID-to-texture mapping
+├── backup/
+│   └── README.md                ← save backups created at runtime
+├── plugin/
+│   └── AssetLoader/
+│       ├── Makefile
+│       └── source/
+│           └── main.cpp         ← asset download/update plugin
 ├── source/
-│   ├── main.cpp                  ← entry point, SDL2+ImGui init, main loop
-│   ├── app_state.hpp             ← shared state & screen enum
-│   ├── i18n.hpp / i18n.cpp       ← i18n loader & t() helper
-│   ├── plugin_check.hpp / .cpp   ← plugin validation
-│   ├── backends/
-│   │   ├── imgui_sdl2_impl.cpp          ← wraps imgui/backends/imgui_impl_sdl2.cpp
-│   │   └── imgui_sdlrenderer2_impl.cpp  ← wraps imgui/backends/imgui_impl_sdlrenderer2.cpp
+│   ├── main.cpp                 ← entry point, SDL2+ImGui init, main loop
+│   ├── app_state.hpp            ← AppState & AppScreen enum
+│   ├── games.hpp                ← all supported Pokémon Switch title IDs
+│   ├── i18n.hpp / i18n.cpp      ← i18n loader (loadDirectory + t())
+│   ├── plugin_check.hpp / .cpp  ← PKMswitch.plugin/ validation
+│   ├── asset_loader.hpp / .cpp  ← asset download/update + init-screen render
+│   ├── ids_loader.hpp / .cpp    ← recursive IDs.json scanner + IDs.txt writer
+│   ├── save_backup.hpp / .cpp   ← save-data ZIP backup creator
 │   └── ui/
-│       ├── screen_plugin_error.*  ← "plugin missing" error screen
-│       ├── screen_terms.*         ← AGB / terms screen (scroll-to-end)
-│       ├── screen_applet.*        ← applet-mode relaunch prompt
-│       └── screen_main.*          ← main editor shell with tabs
-├── icon.png                      ← 256×256 NRO icon
-├── Makefile                      ← devkitPro/libnx build system
+│       ├── screen_plugin_error.*
+│       ├── screen_terms.*
+│       ├── screen_applet.*      ← applet-mode warning (Exit only, no Continue)
+│       ├── screen_user.*        ← Switch user account selection
+│       ├── screen_game.*        ← game selection + immediate save backup
+│       └── screen_main.*        ← all 10 editor tabs
+├── icon.png
+├── Makefile
 └── README.md
 ```
 
-> `imgui/` is **not** tracked in git. It is fetched by `make fetch-imgui` or the CI workflow.

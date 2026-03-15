@@ -1,0 +1,10 @@
+{
+  "pluginId":      "PKMswitch.AssetLoader",
+  "author":        "PKMswitch Contributors",
+  "description":   "Downloads and updates the PKMswitch asset bundle on first run and when updates are available.",
+  "formatVersion": 1,
+  "version":       1,
+  "minAppVersion": 1,
+  "remoteVersionUrl": "https://raw.githubusercontent.com/Smapifan/Switch-Tool/main/assets/Version.txt",
+  "remoteAssetsUrl":  "https://github.com/Smapifan/Switch-Tool/releases/latest/download/assets.zip"
+}

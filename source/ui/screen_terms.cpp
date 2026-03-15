@@ -62,8 +62,11 @@ void renderTerms(AppState& state) {
     if (!atBottom) ImGui::BeginDisabled();
     if (ImGui::Button(I18n::t("terms_accept"), {220.0f, 45.0f})) {
         state.termsAccepted = true;
-        state.screen = state.fullRamMode ? AppScreen::MAIN_MENU
-                                         : AppScreen::APPLET_WARN;
+        if (!state.fullRamMode) {
+            state.screen = AppScreen::APPLET_WARN;
+        } else {
+            state.screen = AppScreen::USER_SELECT;
+        }
     }
     if (!atBottom) ImGui::EndDisabled();
 

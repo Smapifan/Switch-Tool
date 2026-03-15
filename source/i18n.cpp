@@ -16,8 +16,7 @@ static LangMap   s_langs;
 static StringMap s_empty;
 static std::string s_lang = "en";
 
-// ── Minimal JSON parser (handles only the i18n.json structure) ─────────────
-// Parses: { "lang": { "key": "value", ... }, ... }
+// ── Minimal JSON parser (handles only the i18n structure) ──────────────────
 
 static void skipWhitespace(const char* s, size_t len, size_t& pos) {
     while (pos < len && (s[pos] == ' ' || s[pos] == '\t' ||
@@ -26,10 +25,9 @@ static void skipWhitespace(const char* s, size_t len, size_t& pos) {
 }
 
 static std::string parseString(const char* s, size_t len, size_t& pos) {
-    // Skip to opening quote
     while (pos < len && s[pos] != '"') ++pos;
     if (pos >= len) return {};
-    ++pos; // consume "
+    ++pos;
 
     std::string result;
     result.reserve(64);
@@ -52,13 +50,13 @@ static std::string parseString(const char* s, size_t len, size_t& pos) {
         }
         ++pos;
     }
-    if (pos < len) ++pos; // consume closing "
+    if (pos < len) ++pos;
     return result;
 }
 
-static void parseI18nJson(const char* src, size_t len) {
+/// Parse flat { "key": "value" } into a StringMap.
+static void parseFlatJson(const char* src, size_t len, StringMap& map) {
     size_t pos = 0;
-    // Skip outer '{'
     while (pos < len && src[pos] != '{') ++pos;
     if (pos >= len) return;
     ++pos;
@@ -68,22 +66,43 @@ static void parseI18nJson(const char* src, size_t len) {
         if (pos >= len || src[pos] == '}') break;
         if (src[pos] != '"') { ++pos; continue; }
 
-        // Read language key
+        std::string key   = parseString(src, len, pos);
+        skipWhitespace(src, len, pos);
+        while (pos < len && src[pos] != ':') ++pos;
+        if (pos >= len) break;
+        ++pos;
+        std::string value = parseString(src, len, pos);
+        map[key] = std::move(value);
+
+        skipWhitespace(src, len, pos);
+        if (pos < len && src[pos] == ',') ++pos;
+    }
+}
+
+/// Parse nested { "lang": { "key": "value" } } into s_langs.
+static void parseI18nJson(const char* src, size_t len) {
+    size_t pos = 0;
+    while (pos < len && src[pos] != '{') ++pos;
+    if (pos >= len) return;
+    ++pos;
+
+    while (pos < len) {
+        skipWhitespace(src, len, pos);
+        if (pos >= len || src[pos] == '}') break;
+        if (src[pos] != '"') { ++pos; continue; }
+
         std::string langKey = parseString(src, len, pos);
         skipWhitespace(src, len, pos);
-        // Expect ':'
         while (pos < len && src[pos] != ':') ++pos;
         if (pos >= len) break;
         ++pos;
         skipWhitespace(src, len, pos);
-        // Expect inner '{'
         while (pos < len && src[pos] != '{') ++pos;
         if (pos >= len) break;
         ++pos;
 
         StringMap& map = s_langs[langKey];
 
-        // Parse inner key/value pairs
         while (pos < len) {
             skipWhitespace(src, len, pos);
             if (pos >= len || src[pos] == '}') { ++pos; break; }
@@ -106,22 +125,53 @@ static void parseI18nJson(const char* src, size_t len) {
     }
 }
 
-// ── Public API ──────────────────────────────────────────────────────────────
-
-void load(const char* path) {
+static std::string readFileToString(const char* path) {
     FILE* f = fopen(path, "rb");
-    if (!f) return;
-
+    if (!f) return {};
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
     fseek(f, 0, SEEK_SET);
-    if (size <= 0) { fclose(f); return; }
-
+    if (size <= 0) { fclose(f); return {}; }
     std::string buf(static_cast<size_t>(size), '\0');
     fread(&buf[0], 1, static_cast<size_t>(size), f);
     fclose(f);
+    return buf;
+}
 
-    parseI18nJson(buf.data(), buf.size());
+// ── Public API ──────────────────────────────────────────────────────────────
+
+void loadDirectory(const char* dir) {
+    if (!dir) return;
+    std::string base(dir);
+    if (!base.empty() && base.back() != '/') base += '/';
+
+    // Mapping: filename stem → language code
+    struct { const char* stem; const char* code; } files[] = {
+        { "default", "en" },
+        { "de",      "de" },
+        { "fr",      "fr" },
+        { "es",      "es" },
+        { "pt",      "pt" },
+        { "it",      "it" },
+        { "ja",      "ja" },
+    };
+
+    for (auto& f : files) {
+        std::string path = base + f.stem + ".json";
+        std::string buf  = readFileToString(path.c_str());
+        if (buf.empty()) continue;
+        parseFlatJson(buf.data(), buf.size(), s_langs[f.code]);
+    }
+}
+
+void load(const char* path) {
+    std::string buf = readFileToString(path);
+    if (!buf.empty())
+        parseI18nJson(buf.data(), buf.size());
+}
+
+bool hasAnyLanguage() {
+    return !s_langs.empty();
 }
 
 void setLanguage(const std::string& lang) {
@@ -132,7 +182,6 @@ void setLanguage(const std::string& lang) {
 }
 
 void detectSystemLanguage() {
-    // Requires setInitialize() to have been called
     u64 langCode = 0;
     if (R_FAILED(setGetSystemLanguage(&langCode))) {
         setLanguage("en");
@@ -154,14 +203,12 @@ void detectSystemLanguage() {
 }
 
 const char* t(const char* key) {
-    // Try active language
     auto langIt = s_langs.find(s_lang);
     if (langIt != s_langs.end()) {
         auto it = langIt->second.find(key);
         if (it != langIt->second.end())
             return it->second.c_str();
     }
-    // Fallback to English
     if (s_lang != "en") {
         auto enIt = s_langs.find("en");
         if (enIt != s_langs.end()) {
@@ -170,7 +217,7 @@ const char* t(const char* key) {
                 return it->second.c_str();
         }
     }
-    return key; // Return the key itself as last resort
+    return key;
 }
 
 const std::string& currentLanguage() {

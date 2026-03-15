@@ -1,0 +1,4 @@
+{
+  "description": "Game icon sprites for PKMswitch. Place PNG files here matching the 'iconFile' field in games.hpp.",
+  "note": "Icons are downloaded by the AssetLoader plugin on first run. File names must match exactly."
+}

@@ -5,22 +5,24 @@
 #include <backends/imgui_impl_sdlrenderer2.h>
 #include <string>
 #include <cstdio>
+#include <cstring>
 #include <sys/stat.h>
 
 #include "i18n.hpp"
 #include "plugin_check.hpp"
 #include "app_state.hpp"
+#include "asset_loader.hpp"
 #include "ui/screen_plugin_error.hpp"
 #include "ui/screen_terms.hpp"
 #include "ui/screen_applet.hpp"
+#include "ui/screen_user.hpp"
+#include "ui/screen_game.hpp"
 #include "ui/screen_main.hpp"
 
 // ── Constants ──────────────────────────────────────────────────────────────
 static constexpr int  SCREEN_W    = 1280;
 static constexpr int  SCREEN_H    = 720;
 static constexpr int  FONT_SIZE   = 22;
-// Path within RomFS where translations live
-static constexpr const char* I18N_PATH = "romfs:/i18n.json";
 // Config file that remembers whether the user accepted the terms
 static constexpr const char* TERMS_FILE = "sdmc:/switch/PKMswitch/.terms_accepted";
 
@@ -33,7 +35,6 @@ static bool loadTermsAccepted() {
 }
 
 static void saveTermsAccepted() {
-    // Ensure directory exists
     mkdir("sdmc:/switch/PKMswitch", 0777);
     FILE* f = fopen(TERMS_FILE, "w");
     if (f) { fputs("1", f); fclose(f); }
@@ -46,21 +47,35 @@ int main(int argc, char* argv[]) {
     romfsInit();
     plInitialize(PlServiceType_User);
     setInitialize();
+    accountInitialize(AccountServiceType_Application);
+    nifmInitialize(NifmServiceType_User);
 
     // ── Detect applet / full-RAM mode ──────────────────────────────────
     AppletType appletType = appletGetAppletType();
     bool fullRam = (appletType == AppletType_Application ||
                     appletType == AppletType_SystemApplet);
 
+    // ── Resolve NRO directory ──────────────────────────────────────────
+    std::string nroDir;
+    if (argc > 0 && argv[0] && argv[0][0] != '\0') {
+        std::string path(argv[0]);
+        for (char& c : path) if (c == '\\') c = '/';
+        size_t slash = path.rfind('/');
+        if (slash != std::string::npos)
+            nroDir = path.substr(0, slash + 1);
+    }
+    if (nroDir.empty()) nroDir = "sdmc:/switch/PKMswitch/";
+
     // ── Load translations ──────────────────────────────────────────────
-    I18n::load(I18N_PATH);
+    // Load per-language JSON files from the romfs:/ i18n/ directory.
+    I18n::loadDirectory("romfs:/i18n");
     I18n::detectSystemLanguage();
 
     // ── Locate and validate the plugin ────────────────────────────────
     std::string pluginDir = Plugin::resolvePluginDir(argc > 0 ? argv[0] : nullptr);
     Plugin::Info pluginInfo;
     bool pluginOk = Plugin::validate(pluginDir.c_str(), pluginInfo);
-    if (!pluginOk) pluginInfo.dir = pluginDir; // Keep the path for the error screen
+    if (!pluginOk) pluginInfo.dir = pluginDir;
 
     // ── SDL2 init ──────────────────────────────────────────────────────
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
@@ -81,14 +96,13 @@ int main(int argc, char* argv[]) {
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
-    io.IniFilename  = nullptr; // Disable imgui.ini on Switch
+    io.IniFilename  = nullptr;
 
-    // Load system font (no font file needed)
+    // Load system font
     PlFontData fontData{};
     if (R_SUCCEEDED(plGetSharedFontByType(&fontData, PlSharedFontType_Standard))
         && fontData.address && fontData.size > 0)
     {
-        // ImGui takes a copy of the font data
         io.Fonts->AddFontFromMemoryTTF(
             fontData.address,
             static_cast<int>(fontData.size),
@@ -110,12 +124,14 @@ int main(int argc, char* argv[]) {
     ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
     ImGui_ImplSDLRenderer2_Init(renderer);
 
-    // ── Determine initial screen ───────────────────────────────────────
+    // ── Build initial AppState ─────────────────────────────────────────
     AppState appState{};
-    appState.fullRamMode  = fullRam;
-    appState.plugin       = pluginInfo;
+    appState.fullRamMode   = fullRam;
+    appState.plugin        = pluginInfo;
     appState.termsAccepted = loadTermsAccepted();
+    appState.nroDir        = nroDir;
 
+    // ── Determine starting screen ──────────────────────────────────────
     if (!pluginOk) {
         appState.screen = AppScreen::PLUGIN_ERROR;
     } else if (!appState.termsAccepted) {
@@ -123,13 +139,14 @@ int main(int argc, char* argv[]) {
     } else if (!fullRam) {
         appState.screen = AppScreen::APPLET_WARN;
     } else {
-        appState.screen = AppScreen::MAIN_MENU;
+        // Always run the asset-init phase to check for updates and scan IDs.json files.
+        appState.screen = AppScreen::ASSET_INIT;
     }
 
     // ── Main loop ──────────────────────────────────────────────────────
-    // Track whether we've already written the terms-accepted marker file this session.
-    // Initialise to true if terms were loaded from disk (already accepted previously).
     bool termsSaved = appState.termsAccepted;
+    bool assetRunStarted = false;
+
     while (appletMainLoop() && !appState.shouldExit) {
         // Process events
         SDL_Event event;
@@ -156,6 +173,13 @@ int main(int argc, char* argv[]) {
             termsSaved = true;
         }
 
+        // Run asset init (blocking) when entering ASSET_INIT screen
+        if (appState.screen == AppScreen::ASSET_INIT && !assetRunStarted) {
+            assetRunStarted = true;
+            // Render one frame first so the progress screen is visible
+            // then run (will block this frame with progress updates)
+        }
+
         // New ImGui frame
         ImGui_ImplSDLRenderer2_NewFrame();
         ImGui_ImplSDL2_NewFrame();
@@ -163,10 +187,42 @@ int main(int argc, char* argv[]) {
 
         // Dispatch to current screen
         switch (appState.screen) {
-            case AppScreen::PLUGIN_ERROR: UI::renderPluginError(appState); break;
-            case AppScreen::TERMS:        UI::renderTerms(appState);       break;
-            case AppScreen::APPLET_WARN:  UI::renderAppletWarn(appState);  break;
-            case AppScreen::MAIN_MENU:    UI::renderMainMenu(appState);    break;
+            case AppScreen::PLUGIN_ERROR:
+                UI::renderPluginError(appState);
+                break;
+            case AppScreen::TERMS:
+                UI::renderTerms(appState);
+                break;
+            case AppScreen::ASSET_INIT:
+                AssetLoader::renderInitScreen(appState);
+                // After first render, run the blocking init
+                if (assetRunStarted && !appState.assetsReady) {
+                    // Render frame then run init
+                    ImGui::Render();
+                    SDL_SetRenderDrawColor(renderer, 18, 18, 22, 255);
+                    SDL_RenderClear(renderer);
+                    ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
+                    SDL_RenderPresent(renderer);
+                    // Run blocking asset init
+                    AssetLoader::run(appState);
+                    if (appState.assetsReady)
+                        appState.screen = AppScreen::USER_SELECT;
+                    // Continue loop (will re-render)
+                    continue;
+                }
+                break;
+            case AppScreen::APPLET_WARN:
+                UI::renderAppletWarn(appState);
+                break;
+            case AppScreen::USER_SELECT:
+                UI::renderUserSelect(appState);
+                break;
+            case AppScreen::GAME_SELECT:
+                UI::renderGameSelect(appState);
+                break;
+            case AppScreen::MAIN_MENU:
+                UI::renderMainMenu(appState);
+                break;
             case AppScreen::EXIT:
                 appState.shouldExit = true;
                 break;
@@ -189,6 +245,8 @@ int main(int argc, char* argv[]) {
     SDL_DestroyWindow(window);
     SDL_Quit();
 
+    nifmExit();
+    accountExit();
     setExit();
     plExit();
     romfsExit();

@@ -1,45 +1,40 @@
-name: Build PKMswitch NRO
+name: Build PKMswitch bundle
 
 on:
   push:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
-    name: Build NRO (prebuilt image)
     runs-on: ubuntu-latest
     permissions:
       contents: read
     container:
-      # Must be lowercase
       image: ghcr.io/smapifan/devkita64-pkmswitch:latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build and assemble SD card layout
+      - name: Build bundle (no sdmc layout)
         run: |
-          set -eux
-          cd "${GITHUB_WORKSPACE}"
-          bash ci/dist.sh
+          chmod +x ci/dist.sh
+          ./ci/dist.sh
 
-      - name: Package SD card zip
+      - name: Zip bundle
         run: |
           set -eux
-          cd "${GITHUB_WORKSPACE}"
           mkdir -p Release
           ZIP_NAME="PKMswitch_${GITHUB_SHA}.zip"
-          cd dist
-          zip -r "../Release/${ZIP_NAME}" sdmc
-          cd ..
+          (cd dist && zip -r "../Release/${ZIP_NAME}" PKMswitch)
           ls -la Release
 
-      - name: Upload SD card artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PKMswitch-sdmc
+          name: PKMswitch-bundle
           path: Release/*.zip
           if-no-files-found: error

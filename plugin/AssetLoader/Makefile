@@ -1,6 +1,7 @@
 #---------------------------------------------------------------------------------
 # PKMswitch AssetLoader Plugin — Makefile
 # Requires devkitPro with libnx, SDL2 portlibs, and curl portlib.
+# Output: build/AssetLoader.bin  (NRO-format binary with .bin extension)
 #---------------------------------------------------------------------------------
 
 ifeq ($(strip $(DEVKITPRO)),)
@@ -23,6 +24,11 @@ INCLUDES:= include
 #---------------------------------------------------------------------------------
 ARCH := -march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE
 
+# Disable ImGui helpers that call POSIX APIs not available on Horizon
+DEFINES := -DIMGUI_DISABLE_DEFAULT_FILE_FUNCTIONS \
+           -DIMGUI_DISABLE_DEFAULT_SHELL_FUNCTIONS \
+           -DIMGUI_DISABLE_DEFAULT_CLIPBOARD_FUNCTIONS
+
 CFLAGS   := -g -Wall -O2 -ffunction-sections $(ARCH) $(DEFINES)
 CFLAGS   += $(INCLUDE) -D__SWITCH__
 CXXFLAGS := $(CFLAGS) -std=c++17 -fno-rtti -fno-exceptions
@@ -31,16 +37,17 @@ ASFLAGS  := -g $(ARCH)
 
 LDFLAGS  = -specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-LIBS     := -lcurl -lmbedtls -lmbedx509 -lmbedcrypto \
-            `sdl2-config --libs` \
-            -limgui \
+# -lz must follow -lcurl (static link order: curl depends on zlib)
+LIBS     := -lcurl -lz -lmbedtls -lmbedx509 -lmbedcrypto \
+            -lSDL2 \
             -lEGL -lglapi -ldrm_nouveau \
             -lnx
 
 #---------------------------------------------------------------------------------
-# Source / object lists (auto-discovered + ImGui)
+# Source / object lists (auto-discovered + ImGui compiled from source)
 #---------------------------------------------------------------------------------
-IMGUI_DIR := $(CURDIR)/../../imgui
+IMGUI_TAG ?= v1.91.6
+IMGUI_DIR  := $(CURDIR)/../../imgui
 
 CFILES   := $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.c))
 CPPFILES := $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.cpp)) \
@@ -63,13 +70,24 @@ LIBDIRS  := $(DEVKITPRO)/portlibs/switch \
             $(DEVKITPRO)/libnx
 
 #---------------------------------------------------------------------------------
-.PHONY: all clean
+.PHONY: all clean ensure-imgui
 
-all: build/$(TARGET).nro
+ensure-imgui:
+	@if [ ! -f "$(IMGUI_DIR)/imgui.h" ]; then \
+		echo "Fetching Dear ImGui $(IMGUI_TAG)..."; \
+		rm -rf "$(IMGUI_DIR)"; \
+		git clone --depth=1 --branch "$(IMGUI_TAG)" https://github.com/ocornut/imgui.git "$(IMGUI_DIR)"; \
+	fi
 
-build/$(TARGET).nro: build/$(TARGET).elf
+all: ensure-imgui build/$(TARGET).bin
+
+build/$(TARGET).nacp: | build
+	@nacptool --create "$(APP_TITLE)" "$(APP_AUTHOR)" "$(APP_VERSION)" $@
+
+# Output is named .bin but is a valid NRO binary; PKMswitch loads it via envSetNextLoad
+build/$(TARGET).bin: build/$(TARGET).elf build/$(TARGET).nacp
 	@elf2nro $< $@ --icon=$(DEVKITPRO)/libnx/default_icon.jpg \
-	              --nacp=$(TARGET).nacp
+	              --nacp=build/$(TARGET).nacp
 	@echo "Built $@"
 
 build/$(TARGET).elf: $(OFILES) | build
@@ -91,4 +109,4 @@ build:
 	@mkdir -p $@
 
 clean:
-	@rm -rf build $(TARGET).nacp
+	@rm -rf build

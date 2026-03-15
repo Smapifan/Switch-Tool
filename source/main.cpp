@@ -13,6 +13,7 @@
 #include "app_state.hpp"
 #include "asset_loader.hpp"
 #include "ui/screen_plugin_error.hpp"
+#include "ui/screen_no_assets.hpp"
 #include "ui/screen_terms.hpp"
 #include "ui/screen_applet.hpp"
 #include "ui/screen_user.hpp"
@@ -26,8 +27,20 @@ static constexpr int  FONT_SIZE   = 22;
 // Config file that remembers whether the user accepted the terms
 static constexpr const char* TERMS_FILE = "sdmc:/switch/PKMswitch/.terms_accepted";
 
-// ── Terms persistence ──────────────────────────────────────────────────────
-static bool loadTermsAccepted() {
+// ── Helper: build a null-separated argv string for envSetNextLoad ──────────
+/// Concatenates strings with '\0' separators and a final double '\0' terminator.
+/// E.g. makeArgStr({"path/to/bin", "--flag"}) → "path/to/bin\0--flag\0\0"
+static std::string makeArgStr(std::initializer_list<const char*> args) {
+    std::string result;
+    for (const char* a : args) {
+        if (a && a[0] != '\0') {
+            result += a;
+            result += '\0';
+        }
+    }
+    result += '\0'; // double-null terminator
+    return result;
+}
     FILE* f = fopen(TERMS_FILE, "r");
     if (!f) return false;
     fclose(f);
@@ -70,6 +83,43 @@ int main(int argc, char* argv[]) {
     // Load per-language JSON files from the romfs:/ i18n/ directory.
     I18n::loadDirectory("romfs:/i18n");
     I18n::detectSystemLanguage();
+
+    // ── Runtime gating: WLAN check and plugin chain-launch ────────────
+    // Detect if we were re-launched by AssetLoader.bin (--post-plugin flag).
+    bool returnedFromPlugin = false;
+    for (int i = 1; i < argc; ++i) {
+        if (argv[i] && strcmp(argv[i], "--post-plugin") == 0) {
+            returnedFromPlugin = true;
+            break;
+        }
+    }
+
+    std::string assetsDir  = nroDir + "assets";
+    bool        firstRun   = AssetLoader::isFirstRun(assetsDir);
+    bool        wlanAvail  = AssetLoader::isWlanAvailable();
+
+    if (!returnedFromPlugin && wlanAvail) {
+        // WLAN is available: chain-launch AssetLoader.bin so it can check for
+        // updates (or download assets on first run).  PKMswitch will be
+        // re-launched by AssetLoader with --post-plugin when done.
+        std::string pluginBinPath = nroDir + "PKMswitch.plugin/AssetLoader.bin";
+        struct stat bst{};
+        if (stat(pluginBinPath.c_str(), &bst) == 0) {
+            std::string argStr = makeArgStr({
+                pluginBinPath.c_str(),
+                (argc > 0 && argv[0] && argv[0][0] != '\0') ? argv[0] : nullptr
+            });
+            envSetNextLoad(pluginBinPath.c_str(), argStr.c_str());
+            // Cleanup services and exit; AssetLoader takes over
+            nifmExit();
+            accountExit();
+            setExit();
+            plExit();
+            romfsExit();
+            return 0;
+        }
+        // Plugin binary missing – fall through; plugin_check will report error.
+    }
 
     // ── Locate and validate the plugin ────────────────────────────────
     std::string pluginDir = Plugin::resolvePluginDir(argc > 0 ? argv[0] : nullptr);
@@ -132,7 +182,11 @@ int main(int argc, char* argv[]) {
     appState.nroDir        = nroDir;
 
     // ── Determine starting screen ──────────────────────────────────────
-    if (!pluginOk) {
+    if (!wlanAvail && firstRun) {
+        // No Wi-Fi on first run: assets have never been downloaded.
+        // Block entry to the tool and let the user exit.
+        appState.screen = AppScreen::NO_ASSETS;
+    } else if (!pluginOk) {
         appState.screen = AppScreen::PLUGIN_ERROR;
     } else if (!appState.termsAccepted) {
         appState.screen = AppScreen::TERMS;
@@ -189,6 +243,9 @@ int main(int argc, char* argv[]) {
         switch (appState.screen) {
             case AppScreen::PLUGIN_ERROR:
                 UI::renderPluginError(appState);
+                break;
+            case AppScreen::NO_ASSETS:
+                UI::renderNoAssets(appState);
                 break;
             case AppScreen::TERMS:
                 UI::renderTerms(appState);

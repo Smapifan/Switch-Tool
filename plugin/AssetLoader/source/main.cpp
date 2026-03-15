@@ -40,6 +40,23 @@ static constexpr int FONT_SIZE = 22;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/// Returns the directory portion of a file path (with trailing '/').
+static std::string dirOf(const std::string& path) {
+    size_t sl = path.rfind('/');
+    return (sl != std::string::npos) ? path.substr(0, sl + 1) : "";
+}
+
+/// Build a null-separated argv string for envSetNextLoad.
+/// Skips null/empty entries; appends a final double-'\0' terminator.
+static std::string makeArgStr(std::initializer_list<const char*> args) {
+    std::string result;
+    for (const char* a : args) {
+        if (a && a[0] != '\0') { result += a; result += '\0'; }
+    }
+    result += '\0';
+    return result;
+}
+
 static void mkdirp(const std::string& path) {
     for (size_t i = 1; i <= path.size(); ++i) {
         if (i == path.size() || path[i] == '/') {
@@ -232,13 +249,23 @@ int main(int argc, char* argv[]) {
     nifmInitialize(NifmServiceType_User);
     curl_global_init(CURL_GLOBAL_DEFAULT);
 
-    // Resolve NRO directory
+    // argv[0] = this binary path (set by loader)
+    // argv[1] = PKMswitch.nro path passed by PKMswitch so we can relaunch it
+    std::string returnPath;
+    if (argc >= 2 && argv[1] && argv[1][0] != '\0')
+        returnPath = argv[1];
+
+    // Resolve NRO directory (from this binary's own path)
     std::string nroDir = "sdmc:/switch/PKMswitch/";
     if (argc > 0 && argv[0] && argv[0][0] != '\0') {
         std::string path(argv[0]);
         for (char& c : path) if (c == '\\') c = '/';
-        size_t sl = path.rfind('/');
-        if (sl != std::string::npos) nroDir = path.substr(0, sl + 1);
+        // argv[0] is inside PKMswitch.plugin/, so go up one level for nroDir
+        std::string pluginDir = dirOf(path);
+        if (!pluginDir.empty() && pluginDir.back() == '/')
+            pluginDir.pop_back(); // strip trailing '/' before going up
+        std::string parent = dirOf(pluginDir);
+        if (!parent.empty()) nroDir = parent;
     }
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
@@ -388,5 +415,13 @@ int main(int argc, char* argv[]) {
     nifmExit();
     plExit();
     romfsExit();
+
+    // Re-launch PKMswitch with --post-plugin so it skips re-invoking us.
+    // Only relaunch on success; on error the user chose to exit back to hbmenu.
+    if (s.done && !s.error && !returnPath.empty()) {
+        std::string argStr = makeArgStr({returnPath.c_str(), "--post-plugin"});
+        envSetNextLoad(returnPath.c_str(), argStr.c_str());
+    }
+
     return 0;
 }

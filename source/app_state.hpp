@@ -12,6 +12,7 @@
 /// Which screen is currently displayed.
 enum class AppScreen {
     PLUGIN_ERROR,   ///< Fatal: plugin missing or invalid
+    NO_ASSETS,      ///< Fatal: no Wi-Fi and assets not yet downloaded (first run)
     TERMS,          ///< AGB / Terms & Conditions (scroll-to-end required)
     ASSET_INIT,     ///< Asset loader: download / update assets
     APPLET_WARN,    ///< Warning: running in applet mode (limited RAM) – no continue

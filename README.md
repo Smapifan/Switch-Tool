@@ -45,37 +45,39 @@
 
 ## Installation on your Switch
 
-### 1. Copy the NRO
+### 1. Download the release ZIP
+
+Download the latest `PKMswitch_*.zip` from the [Releases](https://github.com/Smapifan/Switch-Tool/releases) page
+(or from the **PKMswitch-Release** CI artifact).
+
+### 2. Copy to SD card
+
+Extract the ZIP and copy the **`sdmc/`** folder to the **root of your Switch SD card**:
 
 ```
-sdmc:/switch/PKMswitch/PKMswitch.nro
+SD card root/
+└── switch/
+    └── PKMswitch/
+        ├── PKMswitch.nro            ← the application
+        └── PKMswitch.plugin/
+            ├── manifest.json        ← data plugin manifest
+            └── AssetLoader.bin      ← asset download plugin
 ```
 
-### 2. Install the AssetLoader plugin (required for assets on first run)
+> **No pre-installed assets required.** On first launch with Wi-Fi connected,
+> the AssetLoader plugin will automatically download the required assets and
+> return you to PKMswitch.
 
-See [AssetLoader plugin](#assetloader-plugin).
+### 3. First-launch flow
 
-### 3. Install the data plugin (required)
+| Condition | Behaviour |
+|---|---|
+| **Wi-Fi connected (first run)** | PKMswitch launches AssetLoader.bin to download assets, then restarts automatically |
+| **Wi-Fi NOT connected (first run)** | Error screen: connect to Wi-Fi and restart |
+| **Subsequent launches** | AssetLoader.bin checks for asset updates, then PKMswitch starts normally |
 
-The data plugin **must** be placed in the **same directory** as `PKMswitch.nro`:
+### 4. Launch in full-RAM mode (required)
 
-```
-sdmc:/switch/PKMswitch/
-├── PKMswitch.nro          ← the application
-├── PKMswitch.plugin/      ← the data plugin (required)
-│   ├── manifest.json
-│   └── ...
-├── assets/                ← downloaded by AssetLoader on first run
-│   ├── Version.txt
-│   ├── i18n/
-│   ├── icons/
-│   └── ...
-└── backup/                ← auto-created; one ZIP per save session
-```
-
-### 4. Launch
-
-For **full RAM mode** (required):
 1. Start any game.
 2. Hold **R** while selecting PKMswitch from the homebrew menu overlay.
 
@@ -139,23 +141,40 @@ Downloaded on: 2025/06/15/14/32/10
   ```bash
   sudo dkp-pacman -S switch-sdl2 switch-mesa switch-libdrm-nouveau switch-curl
   ```
-- Dear ImGui (fetched with `make fetch-imgui`)
+- Dear ImGui (fetched automatically during build)
 
-### Steps
+### Build everything (NRO + plugin + dist layout)
 
 ```bash
 # 1. Clone
 git clone https://github.com/Smapifan/Switch-Tool.git
 cd Switch-Tool
 
-# 2. Fetch Dear ImGui
+# 2. Build app + plugin and assemble dist/ layout
+bash ci/dist.sh
+```
+
+This produces:
+```
+dist/sdmc/switch/PKMswitch/
+├── PKMswitch.nro
+└── PKMswitch.plugin/
+    ├── manifest.json
+    └── AssetLoader.bin
+Release/PKMswitch_local.zip
+```
+
+### Build steps individually
+
+```bash
+# Fetch Dear ImGui (shared by main app and plugin)
 make fetch-imgui
 
-# 3. Build main NRO
+# Build main NRO
 make
 
-# 4. (Optional) Build AssetLoader plugin
-cd plugin/AssetLoader && make
+# Build AssetLoader plugin
+make -C plugin/AssetLoader
 ```
 
 ---
@@ -164,11 +183,12 @@ cd plugin/AssetLoader && make
 
 The workflow in `.github/workflows/build.yml`:
 
-1. Uses the **devkitpro/devkita64** Docker image.
-2. Installs `switch-sdl2 switch-mesa switch-libdrm-nouveau switch-curl` via `dkp-pacman`.
-3. Clones Dear ImGui at the pinned tag.
-4. Runs `make`.
-5. Uploads `PKMswitch.nro` as the **PKMswitch-nro** artifact.
+1. Uses the prebuilt **ghcr.io/smapifan/devkita64-pkmswitch** Docker image (SDL2, curl pre-installed; no `pkg.devkitpro.org` contact needed at build time).
+2. Runs `ci/dist.sh` which fetches Dear ImGui, builds the NRO, builds the plugin, and assembles `dist/`.
+3. Zips `dist/sdmc/` to `Release/PKMswitch_<SHA>.zip`.
+4. Uploads the zip as the **PKMswitch-Release** artifact.
+
+> `assets/` is intentionally **not** included in the dist package; assets are downloaded at runtime by the AssetLoader plugin.
 
 ---
 
@@ -176,48 +196,59 @@ The workflow in `.github/workflows/build.yml`:
 
 ```
 Switch-Tool/
-├── .github/workflows/build.yml
-├── assets/
-│   ├── Version.txt              ← asset bundle version (managed by AssetLoader)
+├── .github/
+│   ├── docker/devkita64-pkmswitch/Dockerfile   ← prebuilt CI image
+│   └── workflows/
+│       ├── build.yml          ← CI: build + dist zip (no pkg.devkitpro.org needed)
+│       └── build-image.yml    ← CI: rebuild Docker image
+├── ci/
+│   ├── dist.sh                ← build script: produces dist/ layout + Release zip
+│   └── dkp-pacman-install.sh  ← retry-aware dkp-pacman helper
+├── assets/                    ← embedded as RomFS in PKMswitch.nro (i18n, icons)
+│   ├── Version.txt            ← remote version reference (NOT shipped in dist)
 │   ├── i18n/
-│   │   ├── default.json         ← English
-│   │   ├── de.json              ← German
-│   │   ├── fr.json              ← French
-│   │   ├── es.json              ← Spanish
-│   │   └── pt.json              ← Portuguese
-│   ├── icons/
-│   │   ├── games/               ← game cover icons (downloaded)
-│   │   ├── pokemon/             ← Pokémon sprite icons
-│   │   └── items/               ← item icons
-│   ├── items/
-│   │   └── IDs.json             ← item ID-to-texture mapping
-│   └── pokemon/
-│       └── IDs.json             ← Pokémon ID-to-texture mapping
-├── backup/
-│   └── README.md                ← save backups created at runtime
+│   │   ├── default.json       ← English (fallback)
+│   │   ├── de.json            ← German
+│   │   ├── fr.json            ← French
+│   │   ├── es.json            ← Spanish
+│   │   └── pt.json            ← Portuguese
+│   └── icons/ / items/ / pokemon/
 ├── plugin/
 │   └── AssetLoader/
-│       ├── Makefile
-│       └── source/
-│           └── main.cpp         ← asset download/update plugin
+│       ├── Makefile           ← builds AssetLoader.bin (NRO format, .bin extension)
+│       ├── manifest.json      ← plugin manifest (copied to dist)
+│       └── source/main.cpp   ← standalone asset download app; relaunches PKMswitch
 ├── source/
-│   ├── main.cpp                 ← entry point, SDL2+ImGui init, main loop
-│   ├── app_state.hpp            ← AppState & AppScreen enum
-│   ├── games.hpp                ← all supported Pokémon Switch title IDs
-│   ├── i18n.hpp / i18n.cpp      ← i18n loader (loadDirectory + t())
-│   ├── plugin_check.hpp / .cpp  ← PKMswitch.plugin/ validation
-│   ├── asset_loader.hpp / .cpp  ← asset download/update + init-screen render
-│   ├── ids_loader.hpp / .cpp    ← recursive IDs.json scanner + IDs.txt writer
-│   ├── save_backup.hpp / .cpp   ← save-data ZIP backup creator
+│   ├── main.cpp               ← entry point; WLAN gate + chain-launch plugin
+│   ├── app_state.hpp          ← AppState & AppScreen enum (incl. NO_ASSETS)
+│   ├── games.hpp
+│   ├── i18n.hpp / i18n.cpp
+│   ├── plugin_check.hpp / .cpp
+│   ├── asset_loader.hpp / .cpp
+│   ├── ids_loader.hpp / .cpp
+│   ├── save_backup.hpp / .cpp
 │   └── ui/
 │       ├── screen_plugin_error.*
+│       ├── screen_no_assets.*   ← "no Wi-Fi on first run" error screen
 │       ├── screen_terms.*
-│       ├── screen_applet.*      ← applet-mode warning (Exit only, no Continue)
-│       ├── screen_user.*        ← Switch user account selection
-│       ├── screen_game.*        ← game selection + immediate save backup
-│       └── screen_main.*        ← all 10 editor tabs
+│       ├── screen_applet.*
+│       ├── screen_user.*
+│       ├── screen_game.*
+│       └── screen_main.*
 ├── icon.png
 ├── Makefile
 └── README.md
 ```
+
+### dist/ layout (produced by `ci/dist.sh`)
+
+```
+dist/sdmc/switch/PKMswitch/
+├── PKMswitch.nro                    ← main app (i18n embedded as RomFS)
+└── PKMswitch.plugin/
+    ├── manifest.json                ← data plugin manifest
+    └── AssetLoader.bin              ← asset downloader (invoked on first run / update)
+```
+
+> `assets/` is **not** included in dist — it is downloaded at runtime.
 

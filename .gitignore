@@ -26,6 +26,10 @@ imgui/
 # Plugin build output
 plugin/AssetLoader/build/
 
+# CI dist and release output
+dist/
+Release/
+
 # Runtime-generated backup ZIPs (the backup/ folder itself is tracked via README)
 backup/*.zip
 

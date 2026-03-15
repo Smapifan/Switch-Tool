@@ -5,43 +5,29 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
-    name: Build NRO (prebuilt image)
+    name: Build + package dist
     runs-on: ubuntu-latest
     permissions:
       contents: read
     container:
-      # Must be lowercase
+      # Must be lowercase; packages (SDL2, curl) are pre-installed in the image
       image: ghcr.io/smapifan/devkita64-pkmswitch:latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build PKMswitch.nro
+      - name: Build and package dist
         run: |
-          set -eux
-          cd "${GITHUB_WORKSPACE}"
-          make
-
-      - name: Package Release zip
-        run: |
-          set -eux
-          cd "${GITHUB_WORKSPACE}"
-          mkdir -p Release
-          ZIP_NAME="PKMswitch_${GITHUB_SHA}.zip"
-          zip -r "Release/${ZIP_NAME}" \
-            PKMswitch.nro \
-            assets \
-            i18n \
-            plugin || true
-          ls -la Release
+          sh ci/dist.sh
 
       - name: Upload Release artifact
         uses: actions/upload-artifact@v4
         with:
           name: PKMswitch-Release
-          path: Release/*.zip
+          path: Release/*
           if-no-files-found: error

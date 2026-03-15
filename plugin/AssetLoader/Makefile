@@ -1,94 +1,111 @@
 #---------------------------------------------------------------------------------
-# PKMswitch AssetLoader Plugin — Makefile
-# Requires devkitPro with libnx, SDL2 portlibs, and curl portlib.
+# PKMswitch AssetLoader Plugin — Makefile (Switch/libnx)
 #---------------------------------------------------------------------------------
+.SUFFIXES:
 
 ifeq ($(strip $(DEVKITPRO)),)
-  $(error "Please set DEVKITPRO in your environment.")
+$(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>/devkitpro")
 endif
 
+TOPDIR ?= $(CURDIR)
 include $(DEVKITPRO)/libnx/switch_rules
+
+TARGET   := AssetLoader
+BUILD    := build
+SOURCES  := source
+INCLUDES := include ../../imgui ../../imgui/backends
 
 APP_TITLE   := PKMswitch AssetLoader
 APP_AUTHOR  := PKMswitch Contributors
 APP_VERSION := 1.0
 
-TARGET  := AssetLoader
-SOURCES := source
-DATA    :=
-INCLUDES:= include
-
-#---------------------------------------------------------------------------------
-# Compiler / linker flags
-#---------------------------------------------------------------------------------
 ARCH := -march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE
+
+# Keep POSIX-y helpers disabled
+DEFINES := -DIMGUI_DISABLE_DEFAULT_SHELL_FUNCTIONS \
+           -DIMGUI_DISABLE_DEFAULT_CLIPBOARD_FUNCTIONS
 
 CFLAGS   := -g -Wall -O2 -ffunction-sections $(ARCH) $(DEFINES)
 CFLAGS   += $(INCLUDE) -D__SWITCH__
-CXXFLAGS := $(CFLAGS) -std=c++17 -fno-rtti -fno-exceptions
-
+CXXFLAGS := $(CFLAGS) -std=gnu++17 -fno-rtti -fno-exceptions
 ASFLAGS  := -g $(ARCH)
 
 LDFLAGS  = -specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-LIBS     := -lcurl -lmbedtls -lmbedx509 -lmbedcrypto \
-            `sdl2-config --libs` \
-            -limgui \
-            -lEGL -lglapi -ldrm_nouveau \
-            -lnx
+# IMPORTANT:
+# - no -limgui (we compile imgui sources directly)
+# - add -lz for curl
+LIBS := -lcurl -lz -lmbedtls -lmbedx509 -lmbedcrypto \
+        -lSDL2 -lEGL -lglapi -ldrm_nouveau -lnx
 
-#---------------------------------------------------------------------------------
-# Source / object lists (auto-discovered + ImGui)
-#---------------------------------------------------------------------------------
-IMGUI_DIR := $(CURDIR)/../../imgui
+LIBDIRS := $(PORTLIBS) $(LIBNX)
 
-CFILES   := $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.c))
-CPPFILES := $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.cpp)) \
-            $(IMGUI_DIR)/imgui.cpp \
-            $(IMGUI_DIR)/imgui_draw.cpp \
-            $(IMGUI_DIR)/imgui_tables.cpp \
-            $(IMGUI_DIR)/imgui_widgets.cpp \
-            $(IMGUI_DIR)/backends/imgui_impl_sdl2.cpp \
-            $(IMGUI_DIR)/backends/imgui_impl_sdlrenderer2.cpp
-OFILES   := $(addprefix build/,$(notdir $(CPPFILES:.cpp=.o) $(CFILES:.c=.o)))
+#-------------------------------------------------------------------------------
+# devkitPro build machinery
+#-------------------------------------------------------------------------------
+ifneq ($(BUILD),$(notdir $(CURDIR)))
 
-INCLUDE  := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
-            -I$(DEVKITPRO)/portlibs/switch/include \
-            -I$(DEVKITPRO)/portlibs/switch/include/SDL2 \
-            -I$(DEVKITPRO)/libnx/include \
-            -I$(IMGUI_DIR) \
-            -I$(IMGUI_DIR)/backends
+export OUTPUT := $(CURDIR)/$(BUILD)/$(TARGET)
+export TOPDIR := $(CURDIR)
 
-LIBDIRS  := $(DEVKITPRO)/portlibs/switch \
-            $(DEVKITPRO)/libnx
+export VPATH := $(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
+                $(CURDIR)/../../imgui \
+                $(CURDIR)/../../imgui/backends
 
-#---------------------------------------------------------------------------------
+export DEPSDIR := $(CURDIR)/$(BUILD)
+
+CFILES   := $(notdir $(wildcard $(CURDIR)/source/*.c))
+CPPFILES := $(notdir $(wildcard $(CURDIR)/source/*.cpp)) \
+            imgui.cpp imgui_draw.cpp imgui_tables.cpp imgui_widgets.cpp \
+            imgui_impl_sdl2.cpp imgui_impl_sdlrenderer2.cpp
+
+SFILES   := $(notdir $(wildcard $(CURDIR)/source/*.s))
+
+ifeq ($(strip $(CPPFILES)),)
+  export LD := $(CC)
+else
+  export LD := $(CXX)
+endif
+
+export OFILES_SRC := $(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
+export OFILES     := $(OFILES_SRC)
+
+# Include paths (make switch.h resolvable ALWAYS)
+export INCLUDE := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
+                  -I$(DEVKITPRO)/libnx/include \
+                  -I$(DEVKITPRO)/portlibs/switch/include \
+                  -I$(DEVKITPRO)/portlibs/switch/include/SDL2 \
+                  $(foreach dir,$(LIBDIRS),-I$(dir)/include) \
+                  -I$(CURDIR)/$(BUILD)
+
+export LIBPATHS := $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
+
 .PHONY: all clean
 
-all: build/$(TARGET).nro
+all: $(BUILD)
 
-build/$(TARGET).nro: build/$(TARGET).elf
-	@elf2nro $< $@ --icon=$(DEVKITPRO)/libnx/default_icon.jpg \
-	              --nacp=$(TARGET).nacp
-	@echo "Built $@"
-
-build/$(TARGET).elf: $(OFILES) | build
-	@$(CXX) $(LDFLAGS) -o $@ $^ $(foreach dir,$(LIBDIRS),-L$(dir)/lib) $(LIBS)
-
-build/%.o: source/%.cpp | build
-	@$(CXX) $(CXXFLAGS) -c $< -o $@
-
-build/%.o: source/%.c | build
-	@$(CC) $(CFLAGS) -c $< -o $@
-
-build/%.o: $(IMGUI_DIR)/%.cpp | build
-	@$(CXX) $(CXXFLAGS) -c $< -o $@
-
-build/%.o: $(IMGUI_DIR)/backends/%.cpp | build
-	@$(CXX) $(CXXFLAGS) -c $< -o $@
-
-build:
-	@mkdir -p $@
+$(BUILD):
+	@[ -d $@ ] || mkdir -p $@
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 clean:
-	@rm -rf build $(TARGET).nacp
+	@echo Cleaning plugin...
+	@rm -rf $(BUILD)
+
+else
+
+DEPENDS := $(OFILES:.o=.d)
+
+.PHONY: all
+
+# Build an NRO for now (your dist script copies/renames to AssetLoader.bin).
+# If you truly need a raw .bin later, we can add an objcopy step.
+all: $(OUTPUT).nro
+
+$(OUTPUT).nro: $(OUTPUT).elf $(OUTPUT).nacp
+
+$(OUTPUT).elf: $(OFILES)
+
+-include $(DEPENDS)
+
+endif

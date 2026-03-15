@@ -25,8 +25,7 @@ jobs:
           dkp-pacman -Syuu --noconfirm
           dkp-pacman -S --noconfirm \
             switch-sdl2 \
-            switch-mesa \
-            switch-libdrm-nouveau
+            switch-mesa
 
       # Fetch Dear ImGui source (not tracked in git)
       - name: Fetch Dear ImGui

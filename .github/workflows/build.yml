@@ -27,23 +27,29 @@ jobs:
             switch-sdl2 \
             switch-mesa
 
-      # Fetch Dear ImGui source (not tracked in git)
-      - name: Fetch Dear ImGui
-        run: |
-          cd "${GITHUB_WORKSPACE}"
-          git clone --depth=1 --branch v1.91.6 \
-            https://github.com/ocornut/imgui.git imgui
-
-      # Build the NRO
+      # Build the NRO (Makefile will auto-fetch ImGui via ensure-imgui)
       - name: Build PKMswitch.nro
         run: |
           cd "${GITHUB_WORKSPACE}"
           make
 
-      # Upload the .nro as a build artifact
-      - name: Upload PKMswitch.nro artifact
+      # Package build outputs into a release zip
+      - name: Package Release zip
+        run: |
+          cd "${GITHUB_WORKSPACE}"
+          mkdir -p Release
+          ZIP_NAME="Release/PKMswitch_${GITHUB_SHA}.zip"
+          INCLUDE_PATHS="PKMswitch.nro assets/"
+          if [ -d i18n ]; then INCLUDE_PATHS="${INCLUDE_PATHS} i18n/"; fi
+          if [ -d plugin ]; then INCLUDE_PATHS="${INCLUDE_PATHS} plugin/"; fi
+          zip -r "${ZIP_NAME}" ${INCLUDE_PATHS}
+          echo "Created ${ZIP_NAME}"
+          ls -lh Release/
+
+      # Upload the release zip as a build artifact
+      - name: Upload Release zip artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PKMswitch-nro
-          path: PKMswitch.nro
+          name: PKMswitch-release
+          path: Release/*.zip
           if-no-files-found: error

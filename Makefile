@@ -32,7 +32,7 @@ ROMFS    := assets
 APP_TITLE   := PKMswitch
 APP_AUTHOR  := Smapifan
 APP_VERSION := 1.0.0
-ICON        := icon.png
+ICON        := assets/icon.png
 
 #-------------------------------------------------------------------------------
 # Compiler / linker flags
@@ -57,11 +57,9 @@ LIBDIRS := $(PORTLIBS) $(LIBNX)
 
 #-------------------------------------------------------------------------------
 # Guard: require imgui source before building
+# NOTE: This is NOT a parse-time check so that `make fetch-imgui` works on a
+#       clean checkout without imgui already present.
 #-------------------------------------------------------------------------------
-ifeq ($(wildcard imgui/imgui.h),)
-$(error "Dear ImGui not found in ./imgui/. Run  make fetch-imgui  or:\n\
-  git clone --depth=1 --branch v1.91.6 https://github.com/ocornut/imgui.git imgui")
-endif
 
 #-------------------------------------------------------------------------------
 # Standard devkitPro build machinery (do not edit below this line)
@@ -129,9 +127,9 @@ ifneq ($(ROMFS),)
     export NROFLAGS += --romfsdir=$(CURDIR)/$(ROMFS)
 endif
 
-.PHONY: $(BUILD) clean all fetch-imgui
+.PHONY: $(BUILD) clean all fetch-imgui ensure-imgui
 
-all: $(BUILD)
+all: ensure-imgui $(BUILD)
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
@@ -141,10 +139,19 @@ clean:
 	@echo Cleaning...
 	@rm -fr $(BUILD) $(TARGET).elf $(TARGET).nacp $(TARGET).nro
 
+## ensure-imgui: fetch ImGui if missing, then restart make so variables are
+## re-evaluated with the freshly cloned sources in scope.
+ensure-imgui:
+	@if [ ! -f imgui/imgui.h ]; then \
+	    $(MAKE) fetch-imgui; \
+	    exec $(MAKE) $(BUILD); \
+	fi
+
 ## Convenience target: clone Dear ImGui at the required version
 IMGUI_TAG ?= v1.91.6
 fetch-imgui:
 	@echo "Fetching Dear ImGui $(IMGUI_TAG)..."
+	@rm -rf imgui
 	git clone --depth=1 --branch $(IMGUI_TAG) \
 	    https://github.com/ocornut/imgui.git imgui
 	@echo "Done. You can now run: make"

@@ -7,11 +7,11 @@
  * @brief Recursive IDs.json discovery and IDs.txt generation.
  *
  * Searches for IDs.json files at the following depths under a root directory:
- *   <root>/*/IDs.json
- *   <root>/*/*/IDs.json
- *   <root>/*/*/*/IDs.json
- *   <root>/*/*/*/*/IDs.json
- *   <root>/*/*/*/*/*/IDs.json   (up to 5 levels)
+ *   <root>/<a>/IDs.json
+ *   <root>/<a>/<b>/IDs.json
+ *   <root>/<a>/<b>/<c>/IDs.json
+ *   <root>/<a>/<b>/<c>/<d>/IDs.json
+ *   <root>/<a>/<b>/<c>/<d>/<e>/IDs.json   (up to 5 levels)
  *
  * For each IDs.json found, a human-readable IDs.txt is generated in the same
  * directory.  The txt format is one line per entry:

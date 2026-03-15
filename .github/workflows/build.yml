@@ -19,17 +19,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Install Switch portlibs needed by the build
+      # Install Switch portlibs with retry/backoff (continue on failure for fallback build)
       - name: Install Switch portlibs
+        id: install_portlibs
+        continue-on-error: true
         run: |
-          dkp-pacman -Syuu --noconfirm
-          dkp-pacman -S --noconfirm \
-            switch-sdl2 \
-            switch-mesa
+          chmod +x ci/dkp-pacman-install.sh
+          ci/dkp-pacman-install.sh switch-sdl2 switch-mesa
 
-      # Build the NRO (Makefile will auto-fetch ImGui via ensure-imgui)
+      # Build the NRO (Makefile will auto-fetch ImGui via ensure-imgui).
+      # If portlib install failed, attempt a fallback build using packages already
+      # present in the container image. The job still fails if make itself fails.
       - name: Build PKMswitch.nro
         run: |
+          set -euo pipefail
+          if [ "${{ steps.install_portlibs.outcome }}" = "failure" ]; then
+            echo "::warning::Portlib install failed — entering fallback build mode. Using packages already present in the container image."
+          fi
           cd "${GITHUB_WORKSPACE}"
           make
 

@@ -14,7 +14,6 @@ permissions:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,12 +25,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # docker/metadata-action normalizes image names to lowercase
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/devkita64-pkmswitch
+          tags: |
+            type=raw,value=latest
+            type=sha
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
           file: .github/docker/devkita64-pkmswitch/Dockerfile
           push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/devkita64-pkmswitch:latest
-            ghcr.io/${{ github.repository_owner }}/devkita64-pkmswitch:${{ github.sha }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

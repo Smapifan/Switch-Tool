@@ -11,7 +11,7 @@ if [ ! -f imgui/imgui.h ]; then
   git clone --depth=1 --branch "${IMGUI_TAG}" https://github.com/ocornut/imgui.git imgui
 fi
 
-echo "[dist] Building (verbose) ..."
+echo "[dist] Building PKMswitch (verbose)..."
 make V=1
 
 echo "[dist] Root after make:"
@@ -19,7 +19,7 @@ ls -la
 echo "[dist] build/ after make:"
 ls -la build || true
 
-# Locate PKMswitch.nro robustly (root or build/)
+# Locate PKMswitch.nro robustly
 NRO=""
 if [ -f "PKMswitch.nro" ]; then
   NRO="PKMswitch.nro"
@@ -37,7 +37,7 @@ fi
 echo "[dist] Building AssetLoader plugin..."
 make -C plugin/AssetLoader
 
-# Find plugin output (until plugin Makefile produces a deterministic .bin)
+# Locate plugin output (prefer .bin if it exists, else accept .nro for now)
 PLUGIN_OUT=""
 if [ -f "plugin/AssetLoader/build/AssetLoader.bin" ]; then
   PLUGIN_OUT="plugin/AssetLoader/build/AssetLoader.bin"
@@ -54,18 +54,13 @@ if [ -z "${PLUGIN_OUT}" ] || [ ! -f "${PLUGIN_OUT}" ]; then
   exit 1
 fi
 
-# Layout doesn't matter: everything happens in the NRO directory and subdirs,
-# but we still produce a clean folder for packing/copying.
-echo "[dist] Assembling output folder..."
-OUT="dist/PKMswitch"
-PLUG="${OUT}/PKMswitch.plugin"
-
+echo "[dist] Creating release bundle folder (no sdmc layout)..."
 rm -rf dist
-mkdir -p "${PLUG}"
+mkdir -p dist/PKMswitch/PKMswitch.plugin
 
-cp -f "${NRO}" "${OUT}/PKMswitch.nro"
-cp -f plugin/AssetLoader/manifest.json "${PLUG}/manifest.json"
-cp -f "${PLUGIN_OUT}" "${PLUG}/AssetLoader.bin"
+cp -f "${NRO}" dist/PKMswitch/PKMswitch.nro
+cp -f plugin/AssetLoader/manifest.json dist/PKMswitch/PKMswitch.plugin/manifest.json
+cp -f "${PLUGIN_OUT}" dist/PKMswitch/PKMswitch.plugin/AssetLoader.bin
 
-echo "[dist] Done:"
-find dist -maxdepth 5 -type f -print
+echo "[dist] Bundle ready:"
+find dist -maxdepth 4 -type f -print

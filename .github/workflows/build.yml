@@ -1,0 +1,47 @@
+name: Build PKMswitch NRO
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    name: Build NRO (devkitPro)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    container:
+      image: devkitpro/devkita64:latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Install Switch portlibs needed by the build
+      - name: Install Switch portlibs
+        run: |
+          dkp-pacman -Syuu --noconfirm
+          dkp-pacman -S --noconfirm \
+            switch-sdl2 \
+            switch-mesa \
+            switch-libdrm-nouveau
+
+      # Fetch Dear ImGui source (not tracked in git)
+      - name: Fetch Dear ImGui
+        run: |
+          git clone --depth=1 --branch v1.91.6 \
+              https://github.com/ocornut/imgui.git imgui
+
+      # Build the NRO
+      - name: Build PKMswitch.nro
+        run: make
+
+      # Upload the .nro as a build artifact
+      - name: Upload PKMswitch.nro artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PKMswitch-nro
+          path: PKMswitch.nro
+          if-no-files-found: error

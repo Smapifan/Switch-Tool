@@ -1,0 +1,24 @@
+# Build output
+build/
+*.elf
+*.nacp
+*.nro
+*.map
+
+# Dear ImGui source (fetched separately via `make fetch-imgui`)
+imgui/
+
+# macOS
+.DS_Store
+
+# Editor files
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# devkitPro environment overrides
+.env
+
+# Runtime / test artifacts
+*.log

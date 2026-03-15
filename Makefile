@@ -15,9 +15,6 @@ include $(DEVKITPRO)/libnx/switch_rules
 # DATA     : Directories containing binary data files
 # INCLUDES : Additional include directories
 # ROMFS    : Directory whose contents are embedded as RomFS (→ romfs:/)
-#
-# Note: Dear ImGui sources live in ./imgui/ which is NOT tracked by git.
-#       Run `make fetch-imgui` or see README.md to obtain them before building.
 #-------------------------------------------------------------------------------
 TARGET   := PKMswitch
 BUILD    := build
@@ -39,6 +36,13 @@ ICON        := assets/icon.png
 #-------------------------------------------------------------------------------
 ARCH := -march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE
 
+# ImGui / Switch-specific defines:
+# - Disable default file/OS helpers that may call POSIX (execvp/waitpid, etc.)
+#   These are not available on Horizon.
+DEFINES  := -DIMGUI_DISABLE_DEFAULT_FILE_FUNCTIONS \
+            -DIMGUI_DISABLE_DEFAULT_SHELL_FUNCTIONS \
+            -DIMGUI_DISABLE_DEFAULT_CLIPBOARD_FUNCTIONS
+
 CFLAGS   := -g -Wall -O2 -ffunction-sections $(ARCH) $(DEFINES)
 CFLAGS   += $(INCLUDE) -D__SWITCH__
 
@@ -48,18 +52,18 @@ ASFLAGS  := -g $(ARCH)
 LDFLAGS   = -specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) \
             -Wl,-Map,$(notdir $*.map)
 
-LIBS := -lcurl -lmbedtls -lmbedx509 -lmbedcrypto -lSDL2 -lEGL -lglapi -ldrm_nouveau -lnx
+#-------------------------------------------------------------------------------
+# Libraries
+# NOTE: libcurl in portlibs typically depends on zlib -> add -lz.
+# Keep -lz AFTER -lcurl (static link order).
+#-------------------------------------------------------------------------------
+LIBS := -lcurl -lz -lmbedtls -lmbedx509 -lmbedcrypto \
+        -lSDL2 -lEGL -lglapi -ldrm_nouveau -lnx
 
 #-------------------------------------------------------------------------------
 # Library search paths
 #-------------------------------------------------------------------------------
 LIBDIRS := $(PORTLIBS) $(LIBNX)
-
-#-------------------------------------------------------------------------------
-# Guard: require imgui source before building
-# NOTE: This is NOT a parse-time check so that `make fetch-imgui` works on a
-#       clean checkout without imgui already present.
-#-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
 # Standard devkitPro build machinery (do not edit below this line)
@@ -90,6 +94,7 @@ export OFILES_SRC   := $(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
 export OFILES       := $(OFILES_BIN) $(OFILES_SRC)
 export HFILES_BIN   := $(patsubst %.bin.o,%.bin.h,$(filter %.bin.o,$(OFILES_BIN)))
 
+# Add explicit SDL2 include paths (helps <SDL.h> resolution in ImGui backend)
 export INCLUDE := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
                   $(foreach dir,$(LIBDIRS),-I$(dir)/include)     \
                   -I$(DEVKITPRO)/portlibs/switch/include         \
@@ -131,6 +136,16 @@ endif
 
 .PHONY: $(BUILD) clean all fetch-imgui ensure-imgui
 
+# Auto-fetch ImGui before building (CI-safe)
+IMGUI_TAG ?= v1.91.6
+ensure-imgui:
+	@if [ ! -f imgui/imgui.h ]; then \
+		echo "Fetching Dear ImGui $(IMGUI_TAG)..."; \
+		rm -rf imgui; \
+		git clone --depth=1 --branch $(IMGUI_TAG) https://github.com/ocornut/imgui.git imgui; \
+		echo "Done. You can now run: make"; \
+	fi
+
 all: ensure-imgui $(BUILD)
 
 $(BUILD):
@@ -141,22 +156,8 @@ clean:
 	@echo Cleaning...
 	@rm -fr $(BUILD) $(TARGET).elf $(TARGET).nacp $(TARGET).nro
 
-## ensure-imgui: fetch ImGui if missing, then restart make so variables are
-## re-evaluated with the freshly cloned sources in scope.
-ensure-imgui:
-	@if [ ! -f imgui/imgui.h ]; then \
-	    $(MAKE) fetch-imgui; \
-	    exec $(MAKE) $(BUILD); \
-	fi
-
-## Convenience target: clone Dear ImGui at the required version
-IMGUI_TAG ?= v1.91.6
-fetch-imgui:
-	@echo "Fetching Dear ImGui $(IMGUI_TAG)..."
-	@rm -rf imgui
-	git clone --depth=1 --branch $(IMGUI_TAG) \
-	    https://github.com/ocornut/imgui.git imgui
-	@echo "Done. You can now run: make"
+# Optional manual fetch
+fetch-imgui: ensure-imgui
 
 else
 

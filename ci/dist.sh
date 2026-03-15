@@ -1,71 +1,71 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env sh
+set -eux
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$REPO_ROOT"
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT_DIR"
 
-# ── 1. Ensure Dear ImGui v1.91.6 is present ──────────────────────────────────
-if [ ! -d imgui ]; then
-  echo "Fetching Dear ImGui v1.91.6..."
-  git clone --depth=1 --branch v1.91.6 \
-      https://github.com/ocornut/imgui.git imgui
+IMGUI_TAG="${IMGUI_TAG:-v1.91.6}"
+if [ ! -f imgui/imgui.h ]; then
+  echo "[dist] Fetching Dear ImGui ${IMGUI_TAG}..."
+  rm -rf imgui
+  git clone --depth=1 --branch "${IMGUI_TAG}" https://github.com/ocornut/imgui.git imgui
 fi
 
-# ── 2. Build main NRO ────────────────────────────────────────────────────────
-echo "Building PKMswitch.nro..."
-make
+echo "[dist] Building (verbose) ..."
+make V=1
 
-# ── 3. Locate PKMswitch.nro ──────────────────────────────────────────────────
+echo "[dist] Root after make:"
+ls -la
+echo "[dist] build/ after make:"
+ls -la build || true
+
+# Locate PKMswitch.nro robustly (root or build/)
 NRO=""
 if [ -f "PKMswitch.nro" ]; then
   NRO="PKMswitch.nro"
 elif [ -f "build/PKMswitch.nro" ]; then
   NRO="build/PKMswitch.nro"
 else
-  NRO=$(find . -maxdepth 2 -name "PKMswitch.nro" | head -n 1)
+  NRO="$(find . -maxdepth 3 -name 'PKMswitch.nro' -print -quit || true)"
 fi
 
-if [ -z "$NRO" ]; then
-  echo "ERROR: PKMswitch.nro not found after make!" >&2
-  ls -la || true
-  ls -la build || true
+if [ -z "${NRO}" ] || [ ! -f "${NRO}" ]; then
+  echo "[dist] ERROR: PKMswitch.nro not found after make!"
   exit 1
 fi
-echo "Found NRO: $NRO"
 
-# ── 4. Build AssetLoader plugin ──────────────────────────────────────────────
-echo "Building AssetLoader plugin..."
+echo "[dist] Building AssetLoader plugin..."
 make -C plugin/AssetLoader
 
-# ── 5. Locate plugin output ──────────────────────────────────────────────────
-PLUGIN_BIN=""
+# Find plugin output (until plugin Makefile produces a deterministic .bin)
+PLUGIN_OUT=""
 if [ -f "plugin/AssetLoader/build/AssetLoader.bin" ]; then
-  PLUGIN_BIN="plugin/AssetLoader/build/AssetLoader.bin"
+  PLUGIN_OUT="plugin/AssetLoader/build/AssetLoader.bin"
 elif [ -f "plugin/AssetLoader/build/AssetLoader.nro" ]; then
-  PLUGIN_BIN="plugin/AssetLoader/build/AssetLoader.nro"
+  PLUGIN_OUT="plugin/AssetLoader/build/AssetLoader.nro"
 else
-  PLUGIN_BIN=$(find plugin/AssetLoader -maxdepth 3 \( -name "AssetLoader.bin" -o -name "AssetLoader.nro" \) | head -n 1)
+  PLUGIN_OUT="$(find plugin/AssetLoader -maxdepth 3 -name 'AssetLoader.*' -print -quit || true)"
 fi
 
-if [ -z "$PLUGIN_BIN" ]; then
-  echo "ERROR: AssetLoader plugin output not found after make!" >&2
+if [ -z "${PLUGIN_OUT}" ] || [ ! -f "${PLUGIN_OUT}" ]; then
+  echo "[dist] ERROR: AssetLoader output not found."
+  ls -la plugin/AssetLoader || true
   ls -la plugin/AssetLoader/build || true
   exit 1
 fi
-echo "Found plugin: $PLUGIN_BIN"
 
-# ── 6. Assemble SD layout ────────────────────────────────────────────────────
-SD_DIR="dist/sdmc/switch/PKMswitch"
-PLUGIN_DIR="${SD_DIR}/PKMswitch.plugin"
+# Layout doesn't matter: everything happens in the NRO directory and subdirs,
+# but we still produce a clean folder for packing/copying.
+echo "[dist] Assembling output folder..."
+OUT="dist/PKMswitch"
+PLUG="${OUT}/PKMswitch.plugin"
 
 rm -rf dist
-mkdir -p "$SD_DIR"
-mkdir -p "$PLUGIN_DIR"
+mkdir -p "${PLUG}"
 
-cp "$NRO"             "${SD_DIR}/PKMswitch.nro"
-cp "$PLUGIN_BIN"      "${PLUGIN_DIR}/AssetLoader.bin"
-cp "plugin/AssetLoader/manifest.json" "${PLUGIN_DIR}/manifest.json"
+cp -f "${NRO}" "${OUT}/PKMswitch.nro"
+cp -f plugin/AssetLoader/manifest.json "${PLUG}/manifest.json"
+cp -f "${PLUGIN_OUT}" "${PLUG}/AssetLoader.bin"
 
-# ── 7. Summary ───────────────────────────────────────────────────────────────
-echo "dist layout:"
-find dist
+echo "[dist] Done:"
+find dist -maxdepth 5 -type f -print

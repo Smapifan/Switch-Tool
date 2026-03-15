@@ -1,6 +1,11 @@
 #-------------------------------------------------------------------------------
 .SUFFIXES:
 #-------------------------------------------------------------------------------
+
+# Ensure `make` builds the actual project by default (not the first helper target)
+.DEFAULT_GOAL := all
+
+#-------------------------------------------------------------------------------
 ifeq ($(strip $(DEVKITPRO)),)
 $(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>/devkitpro")
 endif
@@ -148,10 +153,9 @@ ensure-imgui:
 
 all: ensure-imgui $(BUILD)
 
-# Un-muted build step so CI logs show what happens if build fails / is skipped
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
-	$(MAKE) -C $(BUILD) -f $(CURDIR)/Makefile V=1
+	$(MAKE) -C $(BUILD) -f $(CURDIR)/Makefile
 
 clean:
 	@echo Cleaning...

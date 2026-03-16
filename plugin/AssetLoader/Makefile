@@ -12,14 +12,14 @@ CFLAGS := -g -O2 -I$(DEVKITPRO)/libnx/include -D__SWITCH__
 
 .PHONY: all clean
 
-# Baue den build-Ordner, falls nicht vorhanden
+# Baue build-Ordner falls nicht vorhanden
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
 
-# Kompiliere und erzeuge AssetLoader.bin
+# Kompiliere AssetLoader.c und mache daraus AssetLoader.bin
 $(OUT): $(SRC) | $(BUILD)
 	$(CC) $(CFLAGS) -c -o $(BUILD)/AssetLoader.o $<
-	# Kopiere das Objekt oder erzeuge ein reines Binärfile (je nach Bedarf)
+	# Konvertiere das Objekt zu Binärfile (kann z.B. raw Data sein oder einfach kopiert werden)
 	cp $(BUILD)/AssetLoader.o $(OUT)
 
 all: $(OUT)

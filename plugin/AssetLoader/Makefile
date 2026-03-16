@@ -1,59 +1,75 @@
-# AssetLoader Plugin Build Makefile für Nintendo Switch (libnx/devkitPro)
+.DEFAULT_GOAL := all
 
-PLUGIN_NAME := AssetLoader
-SRC_DIR := source
-BUILD_DIR := build
-OUT := $(BUILD_DIR)/$(PLUGIN_NAME).so
-
-# --- devkitPro/libnx/Pfade ---
-DEVKITPRO ?= /opt/devkitpro
-DEVKITARM ?= $(DEVKITPRO)/devkitA64
-LIBNX     ?= $(DEVKITPRO)/libnx
-
-# --- Quell- und Objektdateien ---
-SRCS := $(wildcard $(SRC_DIR)/*.cpp)
-OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRCS))
-
-# --- Externe Includes ---
-INCLUDE_DIRS := -I$(SRC_DIR) -Iinclude
-INCLUDE_DIRS += -I$(LIBNX)/include
-INCLUDE_DIRS += -I/usr/include/SDL2
-INCLUDE_DIRS += -Ithird-party/imgui
-INCLUDE_DIRS += -Ithird-party/imgui/backends
-
-# --- Compiler (für Nintendo Switch!) ---
-CXX := $(DEVKITARM)/bin/aarch64-none-elf-g++
-CXXFLAGS := -Wall -Werror -fPIC -std=gnu++17 -march=armv8-a+crc -mtune=cortex-a57 $(INCLUDE_DIRS)
-
-# --- Linker-Flags (libnx, SDL2, curl, ImGui, etc.) ---
-LDFLAGS := -shared -specs=$(LIBNX)/switch.specs -lnx -lSDL2 -lcurl -ldl
-
-.PHONY: all clean check
-
-ifeq ($(strip $(SRCS)),)
-$(error Keine .cpp-Dateien in $(SRC_DIR) gefunden! Bitte mindestens eine C++-Datei anlegen.)
+ifeq ($(strip $(DEVKITPRO)),)
+$(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>/devkitpro")
 endif
 
-all: $(OUT) check
+TOPDIR ?= $(CURDIR)
+include $(DEVKITPRO)/libnx/switch_rules
 
-$(BUILD_DIR):
-	mkdir -p $@
+TARGET   := PKMswitch
+BUILD    := build
+SOURCES  := source source/ui source/backends imgui
+DATA     := data
+INCLUDES := source imgui imgui/backends
+ROMFS    := assets
 
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+APP_TITLE   := PKMswitch
+APP_AUTHOR  := Smapifan
+APP_VERSION := 1.0.0
 
-$(OUT): $(OBJS)
-	$(CXX) $(LDFLAGS) -o $@ $^
+ICON := assets/icon.png
+ICON_URL := https://github.com/Smapifan/Switch-Tool/raw/main/assets/icon.png
 
-check:
-	@if [ ! -f $(OUT) ]; then \
-		echo "Build fehlgeschlagen: $(OUT) fehlt!"; exit 1; \
-	fi; \
-	filesize=$$(stat -c%s "$(OUT)"); \
-	if [ "$$filesize" -lt 128 ]; then \
-		echo "Build fehlgeschlagen: $(OUT) zu klein!"; exit 1; \
-	fi; \
-	echo "Build erfolgreich: $(OUT), Größe: $$filesize Bytes."
+.PHONY: check-icon ensure-imgui fetch-imgui clean all
+
+check-icon:
+	@echo "Checking for $(ICON)..."
+	@if [ ! -f $(ICON) ]; then \
+		echo "Icon fehlt, lade es von: $(ICON_URL)"; \
+		mkdir -p assets; \
+		if command -v curl > /dev/null; then \
+			curl -L --output $(ICON) $(ICON_URL) || { echo "Fehler beim Download!"; exit 1; }; \
+		elif command -v wget > /dev/null; then \
+			wget -O $(ICON) $(ICON_URL) || { echo "Fehler beim Download!"; exit 1; }; \
+		else \
+			echo "Bitte icon.png manuell in $(ICON) ablegen."; exit 1; \
+		fi \
+	fi
+	@if [ ! -f $(ICON) ]; then \
+		echo "Missing icon file: $(ICON) (Download/source failed)"; \
+		exit 2; \
+	fi
+
+IMGUI_TAG ?= v1.91.6
+ensure-imgui:
+	@if [ ! -f imgui/imgui.h ]; then \
+		echo "Fetching Dear ImGui $(IMGUI_TAG)..."; \
+		rm -rf imgui; \
+		git clone --depth=1 --branch $(IMGUI_TAG) https://github.com/ocornut/imgui.git imgui; \
+	fi
+
+all: check-icon ensure-imgui $(BUILD)
+
+$(BUILD):
+	@[ -d $@ ] || mkdir -p $@
+	$(MAKE) -C $(BUILD) -f $(CURDIR)/Makefile
 
 clean:
-	rm -rf $(BUILD_DIR)
+	@echo Cleaning...
+	@rm -fr $(BUILD) $(TARGET).elf $(TARGET).nacp $(TARGET).nro
+
+fetch-imgui: ensure-imgui
+
+else
+
+DEPENDS := $(OFILES:.o=.d)
+
+all: $(OUTPUT).nro
+
+$(OUTPUT).nro: $(OUTPUT).elf $(OUTPUT).nacp
+$(OUTPUT).elf: $(OFILES)
+
+-include $(DEPENDS)
+
+endif

@@ -3,24 +3,24 @@ $(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>/de
 endif
 include $(DEVKITPRO)/libnx/switch_rules
 
-PKMswitch_nro_outdir ?= build
-PKMswitch_nro_name ?= PKMswitch
-
-TARGET    := $(PKMswitch_nro_outdir)/$(PKMswitch_nro_name)
+TARGET    := build/PKMswitch
 OUTPUT    := $(TARGET)
 APP_TITLE := PKMswitch
 APP_AUTHOR := Smapifan
 APP_VERSION := 1.0.0
 
-# EXPLICIT ENTRY POINT!
-SOURCES   := source/main.cpp source/ui source/backends imgui
+# Explizit main.cpp als Source - das ist der EINTRAG, der alles robust macht!
+SOURCES   := source/main.cpp             # <-- Die wichtigste Zeile!
 INCLUDES  := source imgui imgui/backends
 ROMFS     := assets
 ICON      := assets/icon.png
 
 all: $(OUTPUT).nro
+
 $(OUTPUT).nro: $(OUTPUT).elf $(OUTPUT).nacp
 $(OUTPUT).elf: $(OFILES)
+
 -include $(OFILES:.o=.d)
+
 clean:
 	rm -f $(OUTPUT).elf $(OUTPUT).nacp $(OUTPUT).nro *.o *.d

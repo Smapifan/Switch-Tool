@@ -1,0 +1,81 @@
+name: Build PKMswitch bundle
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    container:
+      image: ghcr.io/smapifan/devkita64-pkmswitch:latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Preflight source check (Main)
+        run: |
+          if [ ! -f source/main.cpp ]; then
+            echo "[CI] ERROR: source/main.cpp nicht gefunden!"
+            exit 1
+          fi
+          if ! grep -q 'int main' source/main.cpp; then
+            echo "[CI] ERROR: Kein Entry Point in source/main.cpp!"
+            exit 1
+          fi
+
+      - name: Build PKMswitch NRO
+        run: |
+          make clean
+          make
+
+      - name: Preflight plugin check
+        run: |
+          if [ ! -f plugin/AssetLoader/source/main.cpp ]; then
+            echo "[CI] ERROR: plugin/AssetLoader/source/main.cpp nicht gefunden!"
+            exit 1
+          fi
+          if ! grep -q 'int main' plugin/AssetLoader/source/main.cpp; then
+            echo "[CI] ERROR: Kein Entry Point in plugin/AssetLoader/source/main.cpp!"
+            exit 1
+          fi
+
+      - name: Build AssetLoader plugin
+        run: |
+          make -C plugin/AssetLoader clean
+          make -C plugin/AssetLoader
+
+      - name: Collect outputs
+        run: |
+          mkdir -p Release
+          if [ -f build/PKMswitch.nro ]; then
+            cp build/PKMswitch.nro Release/
+          else
+            echo "Main NRO build fehlgeschlagen!"
+            exit 1
+          fi
+          if [ -f build/AssetLoader/AssetLoader.bin ]; then
+            cp build/AssetLoader/AssetLoader.bin Release/
+          else
+            echo "Plugin build fehlgeschlagen!"
+            exit 1
+          fi
+
+      - name: Zip bundle
+        run: |
+          cd Release
+          zip PKMswitch_bundle.zip *
+          ls -la
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PKMswitch-bundle
+          path: Release/PKMswitch_bundle.zip
+          if-no-files-found: error

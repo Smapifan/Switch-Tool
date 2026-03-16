@@ -1,17 +1,17 @@
 ifeq ($(strip $(DEVKITPRO)),)
-$(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<pfad-zu>/devkitpro")
+$(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path-to>/devkitpro")
 endif
 
 include $(DEVKITPRO)/libnx/switch_rules
 
 TARGET := ../../build/AssetLoader/AssetLoader
 OUTPUT := $(TARGET)
-
-SOURCES := source/main.cpp  # ggf. alle plugin sources aufführen
-INCLUDES := source
 APP_TITLE := AssetLoader
 APP_AUTHOR := Smapifan
 APP_VERSION := 1.0.0
+
+SOURCES := source/main.cpp  # ggf. weitere einfügen
+INCLUDES := source
 
 all: $(OUTPUT).nro
 

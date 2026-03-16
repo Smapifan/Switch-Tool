@@ -1,15 +1,26 @@
-.PHONY: all plugins clean
+ifeq ($(strip $(DEVKITPRO)),)
+$(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>/devkitpro")
+endif
+include $(DEVKITPRO)/libnx/switch_rules
 
-BUILD_DIR := build
+PKMswitch_nro_outdir ?= build
+PKMswitch_nro_name ?= PKMswitch
 
-all: $(BUILD_DIR)/PKMswitch.nro plugins
+TARGET    := $(PKMswitch_nro_outdir)/$(PKMswitch_nro_name)
+OUTPUT    := $(TARGET)
+APP_TITLE := PKMswitch
+APP_AUTHOR := Smapifan
+APP_VERSION := 1.0.0
 
-$(BUILD_DIR)/PKMswitch.nro:
-	@mkdir -p $(BUILD_DIR)
-	$(MAKE) -f Makefile.main PKMswitch_nro_outdir=$(BUILD_DIR) PKMswitch_nro_name=PKMswitch
+# EXPLICIT ENTRY POINT!
+SOURCES   := source/main.cpp source/ui source/backends imgui
+INCLUDES  := source imgui imgui/backends
+ROMFS     := assets
+ICON      := assets/icon.png
 
-plugins:
-	$(MAKE) -C plugin/AssetLoader BUILD_ROOT=$(BUILD_DIR)
-
+all: $(OUTPUT).nro
+$(OUTPUT).nro: $(OUTPUT).elf $(OUTPUT).nacp
+$(OUTPUT).elf: $(OFILES)
+-include $(OFILES:.o=.d)
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -f $(OUTPUT).elf $(OUTPUT).nacp $(OUTPUT).nro *.o *.d

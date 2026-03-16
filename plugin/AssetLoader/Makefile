@@ -1,29 +1,42 @@
-ifeq ($(strip $(DEVKITPRO)),)
-$(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>/devkitpro")
-endif
+# Plugin-Build Makefile für AssetLoader
 
-BUILD := build
-TARGET := AssetLoader
-SRC := source/AssetLoader.c
-OUT := $(BUILD)/AssetLoader.bin
+PLUGIN_NAME := AssetLoader
+SRC_DIR := source
+BUILD_DIR := build
+OUT := $(BUILD_DIR)/$(PLUGIN_NAME).so
 
-CC := $(DEVKITPRO)/devkitA64/bin/aarch64-none-elf-gcc
-CFLAGS := -g -O2 -I$(DEVKITPRO)/libnx/include -D__SWITCH__
+SRCS := $(wildcard $(SRC_DIR)/*.c)
+OBJS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 
-.PHONY: all clean
+CFLAGS := -Wall -Werror -fPIC
+LDFLAGS := -shared
 
-# Baue build-Ordner falls nicht vorhanden
-$(BUILD):
-	@[ -d $@ ] || mkdir -p $@
+.PHONY: all clean check
 
-# Kompiliere AssetLoader.c und mache daraus AssetLoader.bin
-$(OUT): $(SRC) | $(BUILD)
-	$(CC) $(CFLAGS) -c -o $(BUILD)/AssetLoader.o $<
-	# Konvertiere das Objekt zu Binärfile (kann z.B. raw Data sein oder einfach kopiert werden)
-	cp $(BUILD)/AssetLoader.o $(OUT)
+all: $(OUT) check
 
-all: $(OUT)
+# Erstelle Build-Verzeichnis falls es fehlt
+$(BUILD_DIR):
+	mkdir -p $@
+
+# Kompiliere jede .c-Datei zu .o ins build/-Verzeichnis
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Linke alle Objekte zu Plugin.so
+$(OUT): $(OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^
+
+# Sicherheitscheck nach Build: Existenz und Mindestgröße
+check:
+	@if [ ! -f $(OUT) ]; then \
+		echo "Build fehlgeschlagen: $(OUT) fehlt!"; exit 1; \
+	fi; \
+	filesize=$$(stat -c%s "$(OUT)"); \
+	if [ "$$filesize" -lt 1000 ]; then \
+		echo "Build fehlgeschlagen: $(OUT) zu klein!"; exit 1; \
+	fi; \
+	echo "Build erfolgreich: $(OUT), Größe: $$filesize Bytes."
 
 clean:
-	@echo Cleaning AssetLoader plugin...
-	@rm -rf $(BUILD)
+	rm -rf $(BUILD_DIR)

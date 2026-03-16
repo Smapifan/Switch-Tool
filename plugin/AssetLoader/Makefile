@@ -1,28 +1,24 @@
-PLUGIN_NAME := AssetLoader
-PLUGIN_OUTDIR := ../../build/$(PLUGIN_NAME)
-PLUGIN_OUTPUT := $(PLUGIN_OUTDIR)/$(PLUGIN_NAME).bin
+ifeq ($(strip $(DEVKITPRO)),)
+$(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<pfad-zu>/devkitpro")
+endif
 
-# Finde alle .cpp rekursiv im Plugin
-SRCS := $(shell find . -type f -name '*.cpp')
-OBJS := $(patsubst ./%.cpp,$(PLUGIN_OUTDIR)/%.o,$(SRCS))
+include $(DEVKITPRO)/libnx/switch_rules
 
-CXX := g++
-CXXFLAGS := -Wall -Werror -fPIC -std=c++17 $(foreach dir,$(shell find . -type d),-I$(dir))
+TARGET := ../../build/AssetLoader/AssetLoader
+OUTPUT := $(TARGET)
 
-.PHONY: all clean
+SOURCES := source/main.cpp  # ggf. alle plugin sources aufführen
+INCLUDES := source
+APP_TITLE := AssetLoader
+APP_AUTHOR := Smapifan
+APP_VERSION := 1.0.0
 
-all: $(PLUGIN_OUTPUT)
+all: $(OUTPUT).nro
 
-$(PLUGIN_OUTDIR):
-	@mkdir -p $(PLUGIN_OUTDIR)
+$(OUTPUT).nro: $(OUTPUT).elf $(OUTPUT).nacp
+$(OUTPUT).elf: $(OFILES)
 
-# Kompiliert alle .cpp im Plugin (inkl. dedizierte main.cpp falls vorhanden)
-$(PLUGIN_OUTDIR)/%.o: %.cpp | $(PLUGIN_OUTDIR)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-# Link zu .bin
-$(PLUGIN_OUTPUT): $(OBJS)
-	$(CXX) -shared -o $@ $^
+-include $(OFILES:.o=.d)
 
 clean:
-	rm -rf $(PLUGIN_OUTDIR)
+	rm -f $(OUTPUT).* *.o *.d

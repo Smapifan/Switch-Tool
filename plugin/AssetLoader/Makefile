@@ -2,12 +2,12 @@ PLUGIN_NAME := AssetLoader
 PLUGIN_OUTDIR := $(BUILD_ROOT)/$(PLUGIN_NAME)
 PLUGIN_OUTPUT := $(PLUGIN_OUTDIR)/$(PLUGIN_NAME).bin
 
-SRC_DIR := source
-SRCS := $(wildcard $(SRC_DIR)/*.cpp)
-OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(PLUGIN_OUTDIR)/%.o,$(SRCS))
+SRC_DIR := .
+SRCS := $(shell find $(SRC_DIR) -type f -name '*.cpp')
+OBJS := $(patsubst ./%.cpp,$(PLUGIN_OUTDIR)/%.o,$(SRCS))
 
-CXX := g++  # Oder Cross-Compiler, je nach Zielplattform
-CXXFLAGS := -Wall -Werror -fPIC -std=c++17 -I$(SRC_DIR)
+CXX := g++  # Oder Cross-Compiler entsprechend Zielplattform
+CXXFLAGS := -Wall -Werror -fPIC -std=c++17 $(foreach dir,$(shell find . -type d),-I$(dir))
 
 .PHONY: all clean
 
@@ -16,7 +16,8 @@ all: $(PLUGIN_OUTPUT)
 $(PLUGIN_OUTDIR):
 	@mkdir -p $(PLUGIN_OUTDIR)
 
-$(PLUGIN_OUTDIR)/%.o: $(SRC_DIR)/%.cpp | $(PLUGIN_OUTDIR)
+# Kompiliere alle Files relativ ins Build/AssetLoader-Ordner
+$(PLUGIN_OUTDIR)/%.o: %.cpp | $(PLUGIN_OUTDIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(PLUGIN_OUTPUT): $(OBJS)

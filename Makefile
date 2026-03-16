@@ -9,11 +9,10 @@ APP_TITLE := PKMswitch
 APP_AUTHOR := Smapifan
 APP_VERSION := 1.0.0
 
-# Explizit main.cpp als Source - das ist der EINTRAG, der alles robust macht!
-SOURCES   := source/main.cpp             # <-- Die wichtigste Zeile!
-INCLUDES  := source imgui imgui/backends
-ROMFS     := assets
-ICON      := assets/icon.png
+SOURCES := source/main.cpp         # <--- Exakt DEINE Datei!
+INCLUDES := source imgui imgui/backends
+ROMFS := assets
+ICON := assets/icon.png
 
 all: $(OUTPUT).nro
 

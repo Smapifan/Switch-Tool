@@ -12,12 +12,14 @@ static float clampf(float v, float a, float b) {
 void renderTerms(AppState& state) {
     const ImGuiIO& io = ImGui::GetIO();
 
-    // Controller buttons und Stick:
+    // Controller buttons und Stick
     PadState pad;
     padInitializeDefault(&pad);
     padUpdate(&pad);
     u64 kDown = padGetButtonsDown(&pad);
-    int stickY = padGetStickPos(&pad).y;
+
+    // Stick-Position holen (links; 0 = links, 1 = rechts)
+    HidAnalogStickState stick = padGetStickPos(&pad, 0); // 0 = L-Stick, 1 = R-Stick
 
     // Full-screen window
     ImGui::SetNextWindowPos({0, 0});
@@ -60,8 +62,8 @@ void renderTerms(AppState& state) {
     const float pageStep = scrollH * 0.80f;
 
     // Stick- und D-Pad-Steuerung
-    if (stickY > 20000) ImGui::SetScrollY(ImGui::GetScrollY() + 18.0f);
-    if (stickY < -20000) ImGui::SetScrollY(ImGui::GetScrollY() - 18.0f);
+    if (stick.y > 20000) ImGui::SetScrollY(ImGui::GetScrollY() + 18.0f);
+    if (stick.y < -20000) ImGui::SetScrollY(ImGui::GetScrollY() - 18.0f);
 
     if (kDown & HidNpadButton_Down) ImGui::SetScrollY(ImGui::GetScrollY() + lineStep);
     if (kDown & HidNpadButton_Up)   ImGui::SetScrollY(ImGui::GetScrollY() - lineStep);
@@ -105,7 +107,7 @@ void renderTerms(AppState& state) {
 
     ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.50f, 0.10f, 0.10f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.65f, 0.15f, 0.15f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.40f, 0.08f, 0.08f, 1.0f);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.40f, 0.08f, 0.08f, 1.0f));
 
     bool decline = ImGui::Button(I18n::t("terms_decline"), {260.0f, 48.0f});
     if (kDown & HidNpadButton_B) decline = true;

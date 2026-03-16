@@ -2,23 +2,43 @@ ifeq ($(strip $(DEVKITPRO)),)
 $(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path-to>/devkitpro")
 endif
 
-include $(DEVKITPRO)/libnx/switch_rules
+export ARCH := aarch64
+export CC   := $(DEVKITPRO)/devkitA64/bin/aarch64-none-elf-gcc
+export CXX  := $(DEVKITPRO)/devkitA64/bin/aarch64-none-elf-g++
+export AR   := $(DEVKITPRO)/devkitA64/bin/aarch64-none-elf-ar
 
-TARGET := ../../build/AssetLoader/AssetLoader
-OUTPUT := $(TARGET)
-APP_TITLE := AssetLoader
-APP_AUTHOR := Smapifan
-APP_VERSION := 1.0.0
+BUILD   := ../../build/AssetLoader
+TARGET  := $(BUILD)/AssetLoader
+SRCDIR  := source
 
-SOURCES := source/main.cpp  # ggf. weitere einfügen
-INCLUDES := source
+# Sammelt alle .cpp im Plugin-Ordner
+SOURCES := $(shell find $(SRCDIR) -type f -name '*.cpp')
+OBJECTS := $(patsubst $(SRCDIR)/%.cpp, $(BUILD)/%.o, $(SOURCES))
 
-all: $(OUTPUT).nro
+CXXFLAGS := -mcpu=cortex-a57+fp+simd+crypto -mtune=cortex-a57 \
+  -I$(DEVKITPRO)/libnx/include \
+  -I$(DEVKITPRO)/portlibs/switch/include \
+  -I$(SRCDIR) \
+  -O2 -Wall -std=c++17 -fPIC
 
-$(OUTPUT).nro: $(OUTPUT).elf $(OUTPUT).nacp
-$(OUTPUT).elf: $(OFILES)
+LDFLAGS := -L$(DEVKITPRO)/libnx/lib -lnx -L$(DEVKITPRO)/portlibs/switch/lib \
+           -lSDL2 -limgui -lcurl
 
--include $(OFILES:.o=.d)
+.PHONY: all clean dirs
+
+all: dirs $(TARGET).bin
+
+dirs:
+	@mkdir -p $(BUILD)
+
+# Kompiliert alle Source-Files ins BUILD-Verzeichnis
+$(BUILD)/%.o : $(SRCDIR)/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Linkt alle Object-Files zu einem (dynamischen) .bin
+$(TARGET).bin: $(OBJECTS)
+	$(CXX) -shared -o $@ $^ $(LDFLAGS)
 
 clean:
-	rm -f $(OUTPUT).* *.o *.d
+	rm -rf $(BUILD)

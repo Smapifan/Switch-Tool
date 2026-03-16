@@ -18,7 +18,6 @@ APP_TITLE   := PKMswitch
 APP_AUTHOR  := Smapifan
 APP_VERSION := 1.0.0
 
-# Der korrekte Download-Link ("raw")
 ICON := assets/icon.png
 ICON_URL := https://github.com/Smapifan/Switch-Tool/raw/main/assets/icon.png
 

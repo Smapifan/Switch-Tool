@@ -1,7 +1,6 @@
 ifeq ($(strip $(DEVKITPRO)),)
 $(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>/devkitpro")
 endif
-
 include $(DEVKITPRO)/libnx/switch_rules
 
 PKMswitch_nro_outdir ?= build
@@ -13,18 +12,15 @@ APP_TITLE := PKMswitch
 APP_AUTHOR := Smapifan
 APP_VERSION := 1.0.0
 
-# Alle Quellordner (außer plugin/*)
-SOURCES   := source source/ui source/backends imgui
+# Explizit die main.cpp fürs NRO-Projekt angeben und ggf. weitere Quellen:
+SOURCES   := source/main.cpp source/other.cpp source/ui source/backends imgui
 INCLUDES  := source imgui imgui/backends
 ROMFS     := assets
 ICON      := assets/icon.png
 
 all: $(OUTPUT).nro
-
 $(OUTPUT).nro: $(OUTPUT).elf $(OUTPUT).nacp
 $(OUTPUT).elf: $(OFILES)
-
 -include $(OFILES:.o=.d)
-
 clean:
 	rm -f $(OUTPUT).elf $(OUTPUT).nacp $(OUTPUT).nro *.o *.d

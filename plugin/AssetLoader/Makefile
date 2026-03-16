@@ -1,35 +1,32 @@
+# AssetLoader Plugin Build Makefile für Nintendo Switch (libnx/devkitPro)
+
 PLUGIN_NAME := AssetLoader
 SRC_DIR := source
 BUILD_DIR := build
 OUT := $(BUILD_DIR)/$(PLUGIN_NAME).so
 
+# --- devkitPro/libnx/Pfade ---
+DEVKITPRO ?= /opt/devkitpro
+DEVKITARM ?= $(DEVKITPRO)/devkitA64
+LIBNX     ?= $(DEVKITPRO)/libnx
+
+# --- Quell- und Objektdateien ---
 SRCS := $(wildcard $(SRC_DIR)/*.cpp)
 OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRCS))
 
-# =========== Zentrale Include-Dirs (für alle externen und system-Header) ==========
+# --- Externe Includes ---
 INCLUDE_DIRS := -I$(SRC_DIR) -Iinclude
-
-# Für Switch Homebrew Entwickung (libnx, switch.h)
-INCLUDE_DIRS += -I/opt/devkitpro/libnx/include
-
-# Für SDL2
+INCLUDE_DIRS += -I$(LIBNX)/include
 INCLUDE_DIRS += -I/usr/include/SDL2
-# Falls Windows: INCLUDE_DIRS += -IC:/msys64/mingw64/include/SDL2
-
-# Für ImGui und ImGui-Backends (Passe ggf. an: z.B. third-party/imgui)
 INCLUDE_DIRS += -Ithird-party/imgui
 INCLUDE_DIRS += -Ithird-party/imgui/backends
 
-# Für libcurl
-INCLUDE_DIRS += -I/usr/include
+# --- Compiler (für Nintendo Switch!) ---
+CXX := $(DEVKITARM)/bin/aarch64-none-elf-g++
+CXXFLAGS := -Wall -Werror -fPIC -std=gnu++17 -march=armv8-a+crc -mtune=cortex-a57 $(INCLUDE_DIRS)
 
-# =========== Linker-Flags für dynamische Libraries hinzufügen =============
-LDLIBS := -lSDL2 -lcurl -ldl
-LDLIBS += -lSDL2main            # Falls nötig, ggf. entfernen, wenn Problem
-# Bei Link-Problemen mit ImGui, libnx, ... ggf. weitere -l Einträge!
-
-CXXFLAGS := -Wall -Werror -fPIC -std=c++17 $(INCLUDE_DIRS)
-LDFLAGS := -shared $(LDLIBS)
+# --- Linker-Flags (libnx, SDL2, curl, ImGui, etc.) ---
+LDFLAGS := -shared -specs=$(LIBNX)/switch.specs -lnx -lSDL2 -lcurl -ldl
 
 .PHONY: all clean check
 

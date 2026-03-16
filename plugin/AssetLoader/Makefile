@@ -41,11 +41,13 @@ export LIBPATHS := $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
 .PHONY: all clean
 
-all: $(BUILD)
+all: $(BUILD)/AssetLoader.nro
+
+$(BUILD)/AssetLoader.nro: $(BUILD)
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
-	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 clean:
 	@echo Cleaning plugin...

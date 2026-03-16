@@ -18,10 +18,28 @@ APP_TITLE   := PKMswitch
 APP_AUTHOR  := Smapifan
 APP_VERSION := 1.0.0
 
+# Der korrekte Download-Link ("raw")
 ICON := assets/icon.png
-ifeq ($(wildcard $(ICON)),)
-$(error "Missing icon file: $(ICON) (expected at assets/icon.png)")
-endif
+ICON_URL := https://github.com/Smapifan/Switch-Tool/raw/main/assets/icon.png
+
+.PHONY: check-icon
+check-icon:
+	@echo "Checking for $(ICON)..."
+	@if [ ! -f $(ICON) ]; then \
+		echo "Icon fehlt, lade es von: $(ICON_URL)"; \
+		mkdir -p assets; \
+		if command -v curl > /dev/null; then \
+			curl -L --output $(ICON) $(ICON_URL) || { echo "Fehler beim Download!"; exit 1; }; \
+		elif command -v wget > /dev/null; then \
+			wget -O $(ICON) $(ICON_URL) || { echo "Fehler beim Download!"; exit 1; }; \
+		else \
+			echo "Bitte icon.png manuell in $(ICON) ablegen."; exit 1; \
+		fi \
+	fi
+	@if [ ! -f $(ICON) ]; then \
+		echo "Missing icon file: $(ICON) (Download/source failed)"; \
+		exit 2; \
+	fi
 
 ARCH := -march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE
 
@@ -101,7 +119,7 @@ ensure-imgui:
 		echo "Done. You can now run: make"; \
 	fi
 
-all: ensure-imgui $(BUILD)
+all: check-icon ensure-imgui $(BUILD)
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@

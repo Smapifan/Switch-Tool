@@ -13,6 +13,11 @@ LDFLAGS := -shared
 
 .PHONY: all clean check
 
+# Fehler abfangen: keine Quellen vorhanden
+ifeq ($(strip $(SRCS)),)
+$(error Keine .c-Dateien in $(SRC_DIR) gefunden! Bitte mindestens eine C-Datei anlegen.)
+endif
+
 all: $(OUT) check
 
 # Erstelle Build-Verzeichnis falls es fehlt
@@ -23,7 +28,7 @@ $(BUILD_DIR):
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Linke alle Objekte zu Plugin.so
+# Linke alle Objekte zu AssetLoader.so
 $(OUT): $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^
 

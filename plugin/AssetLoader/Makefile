@@ -50,8 +50,3 @@ $(BUILD):
 clean:
 	@echo Cleaning plugin...
 	@rm -rf $(BUILD)
-$(OUTPUT).elf: $(OFILES)
-
--include $(DEPENDS)
-
-endif

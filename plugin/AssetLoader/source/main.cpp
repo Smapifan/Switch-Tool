@@ -1,4 +1,3 @@
-#include <switch.h>
 #include <sys/select.h>
 #include <curl/curl.h>
 #include <sys/stat.h>
@@ -7,25 +6,22 @@
 #include <ctime>
 #include <string>
 #include <vector>
-#include <map>    
+#include <map>
 
-// --- Update & Version ---
-static constexpr const char* REMOTE_VERSION_URL =
-    "https://raw.githubusercontent.com/Smapifan/Switch-Tool/main/assets/Version.txt";
-static constexpr const char* REMOTE_ASSETS_ZIP_URL =
-    "https://github.com/Smapifan/Switch-Tool/releases/latest/download/assets.zip";
+// --- Remote-Info ---
+static constexpr const char* REMOTE_VERSION_URL = "https://raw.githubusercontent.com/Smapifan/Switch-Tool/main/assets/Version.txt";
+static constexpr const char* REMOTE_ASSETS_ZIP_URL = "https://github.com/Smapifan/Switch-Tool/releases/latest/download/assets.zip";
 
-// --- IDs-EXTRA (spiele mit mehreren Sprachen) ---
+// Beispiel-Datenstruktur für Items & IDs (Dummy)
 struct ItemInfo {
     int id;
     std::string name;
     std::map<std::string, std::string> translations;
 };
-// Dummy-Daten für Beispiel
 std::map<std::string, std::vector<ItemInfo>> gameItems = {
-    {"firered", { {1,"POKE BALL", {{"en","POKE BALL"},{"de","POKEBALL"}}}, {2,"POTION", {{"en","POTION"}}} }},
+    {"firered",   { {1,"POKE BALL", {{"en","POKE BALL"},{"de","POKEBALL"}}}, {2,"POTION", {{"en","POTION"}}} }},
     {"leafgreen", { {1,"POKE BALL", {{"en","POKE BALL"},{"de","POKEBALL"},{"fr","BALLE"}}}, {2,"POTION", {{"en","POTION"}}} }},
-    {"emerald", { {1,"POKE BALL", {{"en","POKE BALL"}}} }}
+    {"emerald",   { {1,"POKE BALL", {{"en","POKE BALL"}}} }}
 };
 
 static void mkdirp(const std::string& path) {
@@ -83,10 +79,9 @@ static size_t curlWriteFile(char* ptr, size_t sz, size_t nm, void* ud) {
 }
 
 int main(int argc, char* argv[]) {
-    romfsInit();
-    mkdirp("sdmc:/switch/PKMswitch/assets/IDs");
+    mkdirp("assets/IDs");
 
-    std::string assetsDir = "sdmc:/switch/PKMswitch/assets";
+    std::string assetsDir = "assets";
     std::string verPath   = assetsDir + "/Version.txt";
     std::string localTxt  = readFile(verPath);
 
@@ -127,30 +122,31 @@ int main(int argc, char* argv[]) {
         }
         fclose(fp);
 
-        // TODO: ZIP-Entpacken (hier ggf. miniz/libzip nutzen)
+        // TODO: ZIP-Entpacken
+        // Hier könntest du mit miniz oder libzip usw. das Archiv entpacken
 
         // Version.txt schreiben mit aktuellem Timestamp
         time_t now = time(nullptr);
         struct tm* t = localtime(&now);
         char ts[64];
         snprintf(ts, sizeof(ts), "%04d/%02d/%02d/%02d/%02d/%02d",
-            t->tm_year+1900, t->tm_mon+1, t->tm_mday,
-            t->tm_hour, t->tm_min, t->tm_sec);
+                 t->tm_year + 1900, t->tm_mon+1, t->tm_mday,
+                 t->tm_hour, t->tm_min, t->tm_sec);
 
         FILE* vf = fopen(verPath.c_str(), "w");
         if (vf) {
             fprintf(vf, "Version: %s\nPublished on: %s\nDownloaded on: %s\n",
-                remoteVer.c_str(), remotePub.c_str(), ts);
+                    remoteVer.c_str(), remotePub.c_str(), ts);
             fclose(vf);
         }
         remove(zipPath.c_str());
     }
 
-    // --- IDs Games export ---
+    // --- IDs exportieren nach assets/IDs/ ---
     for (const auto& game : gameItems) {
         std::string gameName = game.first;
         for (const auto& item : game.second) {
-            // Jede Sprache separat speichern, sonst nur englisch
+            // Jede Sprache separat speichern
             for (const auto& trans : item.translations) {
                 std::string lang = trans.first;
                 std::string fname = gameName;
@@ -162,7 +158,7 @@ int main(int argc, char* argv[]) {
                     fclose(outf);
                 }
             }
-            // ENGLISCH immer garantieren (falls nicht separat im translations)
+            // Englisch als Fallback
             if (item.translations.count("en") == 0) {
                 std::string idFile = assetsDir + "/IDs/" + gameName + ".txt";
                 FILE* outf = fopen(idFile.c_str(), "a");
@@ -175,6 +171,5 @@ int main(int argc, char* argv[]) {
     }
 
     curl_global_cleanup();
-    romfsExit();
     return 0;
 }

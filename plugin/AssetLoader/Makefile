@@ -6,9 +6,9 @@ SOURCES := $(wildcard $(SRCDIR)/*.cpp)
 OBJECTS := $(patsubst $(SRCDIR)/%.cpp,$(BUILD)/%.o,$(SOURCES))
 
 CXX      := aarch64-linux-gnu-g++
+# Falls find / -name curl.h ergibt: /usr/aarch64-linux-gnu/include/curl/curl.h
 CXXFLAGS := -I/usr/aarch64-linux-gnu/include -I/usr/aarch64-linux-gnu/include/curl \
   -I$(SRCDIR) -O2 -Wall -std=c++17
-
 LDFLAGS  := -L/usr/aarch64-linux-gnu/lib -lcurl
 
 .PHONY: all clean dirs

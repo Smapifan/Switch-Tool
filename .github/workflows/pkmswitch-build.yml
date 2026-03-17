@@ -19,7 +19,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # MAIN PKMswitch NRO
       - name: Preflight source check (Main)
         run: |
           if [ ! -f source/main.cpp ]; then
@@ -36,24 +35,6 @@ jobs:
           make clean
           make
 
-      # AssetLoader Plugin (nur für Homebrew-Version, optional)
-      - name: Preflight plugin check
-        run: |
-          if [ ! -f plugin/AssetLoader/source/main.cpp ]; then
-            echo "[CI] ERROR: plugin/AssetLoader/source/main.cpp nicht gefunden!"
-            exit 1
-          fi
-          if ! grep -q 'int main' plugin/AssetLoader/source/main.cpp; then
-            echo "[CI] ERROR: Kein Entry Point in plugin/AssetLoader/source/main.cpp!"
-            exit 1
-          fi
-
-      - name: Build AssetLoader plugin
-        run: |
-          make -C plugin/AssetLoader clean
-          make -C plugin/AssetLoader
-
-      # pokemon-id-exporter NRO
       - name: Preflight Exporter check
         run: |
           if [ ! -f pokemon-id-exporter/source/main.cpp ]; then
@@ -77,12 +58,6 @@ jobs:
             cp build/PKMswitch.nro Release/
           else
             echo "Main NRO build fehlgeschlagen!"
-            exit 1
-          fi
-          if [ -f build/AssetLoader/AssetLoader.bin ]; then
-            cp build/AssetLoader/AssetLoader.bin Release/
-          else
-            echo "Plugin build fehlgeschlagen!"
             exit 1
           fi
           if [ -f pokemon-id-exporter/build/pokemon-id-exporter.nro ]; then

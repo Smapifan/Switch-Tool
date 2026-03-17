@@ -16,7 +16,6 @@ CXXFLAGS := -mcpu=cortex-a57+fp+simd+crypto -mtune=cortex-a57 \
   -O2 -Wall -std=c++17 -fPIC
 
 LDFLAGS := -L$(DEVKITPRO)/libnx/lib -L$(DEVKITPRO)/portlibs/switch/lib -lcurl -lz -lnx \
-  -Wl,-T$(DEVKITPRO)/libnx/switch.armv8.ld
 
 .PHONY: all clean dirs
 

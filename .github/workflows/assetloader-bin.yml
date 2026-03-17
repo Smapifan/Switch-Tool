@@ -1,0 +1,43 @@
+name: Build AssetLoader ARM64 Linux BIN
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build_bin:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ARM64 Crosscompiler and Curl-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++-aarch64-linux-gnu libcurl4-openssl-dev
+
+      - name: Build AssetLoader BIN
+        run: |
+          make -C plugin/AssetLoader clean
+          make -C plugin/AssetLoader
+
+      - name: Collect AssetLoader BIN
+        run: |
+          mkdir -p Release
+          if [ -f build/AssetLoader/AssetLoader.bin ]; then
+            cp build/AssetLoader/AssetLoader.bin Release/
+          else
+            echo "AssetLoader bin fehlt!"
+            exit 1
+          fi
+
+      - name: Upload AssetLoader BIN
+        uses: actions/upload-artifact@v4
+        with:
+          name: AssetLoader-bin
+          path: Release/AssetLoader.bin
+          if-no-files-found: error

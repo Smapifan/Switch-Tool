@@ -5,6 +5,15 @@ SRCDIR  := source
 SOURCES := $(shell find $(SRCDIR) -type f -name '*.cpp')
 OBJECTS := $(patsubst $(SRCDIR)/%.cpp, $(BUILD)/%.o, $(SOURCES))
 
+# Benutze explizit devkitA64-Compiler, nicht das System-g++
+ifeq ($(DEVKITPRO),)
+$(error "Please source your devkitPro environment (z.B. source /opt/devkitpro/switchvars.sh)!")
+endif
+
+CXX     := $(DEVKITPRO)/devkitA64/bin/aarch64-none-elf-g++
+CC      := $(DEVKITPRO)/devkitA64/bin/aarch64-none-elf-gcc
+STRIP   := $(DEVKITPRO)/devkitA64/bin/aarch64-none-elf-strip
+
 CXXFLAGS := -mcpu=cortex-a57+fp+simd+crypto -mtune=cortex-a57 \
   -I$(DEVKITPRO)/portlibs/switch/include \
   -I$(SRCDIR) \

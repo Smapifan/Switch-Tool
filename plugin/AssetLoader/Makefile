@@ -5,15 +5,12 @@ SRCDIR  := source
 SOURCES := $(wildcard $(SRCDIR)/*.cpp)
 OBJECTS := $(patsubst $(SRCDIR)/%.cpp,$(BUILD)/%.o,$(SOURCES))
 
-CXX     := aarch64-linux-gnu-g++
-CC      := aarch64-linux-gnu-gcc
+CXX      := aarch64-linux-gnu-g++
+CXXFLAGS := -I/usr/include -I/usr/include/curl \
+	-I$(SRCDIR) \
+	-O2 -Wall -std=c++17
 
-CXXFLAGS := -I/usr/include \
-  -I/usr/include/curl \
-  -I$(SRCDIR) \
-  -O2 -Wall -std=c++17
-
-LDFLAGS := -lcurl
+LDFLAGS  := -lcurl
 
 .PHONY: all clean dirs
 

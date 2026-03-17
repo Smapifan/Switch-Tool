@@ -12,31 +12,72 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Enable ARM64 Multiarch and Install ARM64 Curl
+      - name: Show Runner/OS Info
         run: |
+          echo "=== OS Info ==="
+          cat /etc/os-release || echo "No OS release file"
+          uname -a
+          echo "=== CPU Info ==="
+          lscpu || echo "No CPU info"
+          echo "=== Disk ==="
+          df -h
+          echo "=== Filesystem (Build dir) ==="
+          ls -l plugin/AssetLoader/source
+
+      - name: Enable Multiarch and Install ARM64 Cross toolchain & curl dev
+        run: |
+          echo "=== ARM64 Multiarch-Einrichtung ==="
           sudo dpkg --add-architecture arm64
           sudo apt-get update
+          echo "=== ARM64 Cross-Compiler ==="
           sudo apt-get install -y g++-aarch64-linux-gnu crossbuild-essential-arm64 pkg-config
+          echo "=== ARM64 curl dev ==="
           sudo apt-get install -y libcurl4-openssl-dev:arm64 || true
+          echo "=== x86 curl dev ==="
+          sudo apt-get install -y libcurl4-openssl-dev || true
 
-      - name: Show all curl.h in System for debugging
+      - name: Suche nach curl.h im gesamten System (LOGS!)
         run: |
+          echo "=== Suche nach curl.h ==="
           sudo find / -iname curl.h || true
+          echo "=== Suche nach libcurl.so ==="
+          sudo find / -iname "libcurl.so*" || true
 
-      - name: Build AssetLoader BIN
+      - name: Zeige alle Cross Include-Verzeichnisse
         run: |
+          echo "=== Verzeichnisse /usr/aarch64-linux-gnu/include ==="
+          ls -l /usr/aarch64-linux-gnu/include || echo "DIR NICHT DA!"
+          ls -l /usr/aarch64-linux-gnu/include/curl || echo "DIR NICHT DA!"
+          echo "=== Verzeichnisse /usr/include/aarch64-linux-gnu ==="
+          ls -l /usr/include/aarch64-linux-gnu || echo "DIR NICHT DA!"
+          ls -l /usr/include/aarch64-linux-gnu/curl || echo "DIR NICHT DA!"
+
+      - name: Baue AssetLoader BIN mit maximalem LOG
+        run: |
+          set -x # Aktiviert Shell-Debug
           make -C plugin/AssetLoader clean
-          make -C plugin/AssetLoader
+          make -C plugin/AssetLoader V=1
+
+      - name: Zeige Build-Output-Ordner
+        run: |
+          echo "=== Files im build/AssetLoader ==="
+          ls -lh build/AssetLoader || echo "Ordner nicht da"
 
       - name: Collect AssetLoader BIN
         run: |
           mkdir -p Release
-          [ -f build/AssetLoader/AssetLoader.bin ] && cp build/AssetLoader/AssetLoader.bin Release/ || { echo "AssetLoader bin fehlt"; exit 1; }
+          if [ -f build/AssetLoader/AssetLoader.bin ]; then
+            echo "=== AssetLoader.bin gefunden und bereit zum Upload ==="
+            cp build/AssetLoader/AssetLoader.bin Release/
+          else
+            echo "ERROR: AssetLoader BIN fehlt! Prüfe vorigen LOG."
+            exit 1
+          fi
 
-      - name: Upload AssetLoader BIN
+      - name: Upload AssetLoader BIN als Artifact
         uses: actions/upload-artifact@v4
         with:
           name: AssetLoader-bin

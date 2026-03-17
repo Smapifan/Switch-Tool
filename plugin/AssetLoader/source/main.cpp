@@ -1,12 +1,11 @@
 #include <switch.h>
+#include <sys/select.h>
 #include <curl/curl.h>
 #include <sys/stat.h>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
 #include <string>
-#include <vector>
-#include <map>
 
 // --- Update & Version ---
 static constexpr const char* REMOTE_VERSION_URL =

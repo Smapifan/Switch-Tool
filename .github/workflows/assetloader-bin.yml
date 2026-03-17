@@ -22,26 +22,19 @@ jobs:
           sudo apt-get install -y g++-aarch64-linux-gnu crossbuild-essential-arm64 pkg-config
           sudo apt-get install -y libcurl4-openssl-dev:arm64 || true
 
-      - name: Suche nach curl.h im System
+      - name: Show all curl.h in System for debugging
         run: |
           sudo find / -iname curl.h || true
 
       - name: Build AssetLoader BIN
         run: |
-          # Versuche mit den standard Cross-Header-Pfaden!
-          # (Den Pfad ggf. im Makefile anpassen!)
           make -C plugin/AssetLoader clean
           make -C plugin/AssetLoader
 
       - name: Collect AssetLoader BIN
         run: |
           mkdir -p Release
-          if [ -f build/AssetLoader/AssetLoader.bin ]; then
-            cp build/AssetLoader/AssetLoader.bin Release/
-          else
-            echo "AssetLoader bin fehlt!"
-            exit 1
-          fi
+          [ -f build/AssetLoader/AssetLoader.bin ] && cp build/AssetLoader/AssetLoader.bin Release/ || { echo "AssetLoader bin fehlt"; exit 1; }
 
       - name: Upload AssetLoader BIN
         uses: actions/upload-artifact@v4

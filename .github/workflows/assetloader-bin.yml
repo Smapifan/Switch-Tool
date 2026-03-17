@@ -15,13 +15,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install ARM64 Crosscompiler and Curl-dev
+      - name: Enable ARM64 Multiarch and Install ARM64 Curl
         run: |
+          sudo dpkg --add-architecture arm64
           sudo apt-get update
-          sudo apt-get install -y g++-aarch64-linux-gnu pkg-config crossbuild-essential-arm64
-          sudo apt-get install -y libcurl4-openssl-dev:arm64 || true
-          # not in all repos: eventuell statisch für ARM64 bauen falls Pakete fehlen
-    
+          sudo apt-get install -y g++-aarch64-linux-gnu crossbuild-essential-arm64 pkg-config
+          sudo apt-get install -y libcurl4-openssl-dev:arm64
+          ls -l /usr/aarch64-linux-gnu/include/curl/curl.h || (echo "curl.h NICHT DA! Check Makefile-Includes!" && exit 1)
+
       - name: Build AssetLoader BIN
         run: |
           make -C plugin/AssetLoader clean

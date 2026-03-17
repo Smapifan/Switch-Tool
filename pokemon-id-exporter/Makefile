@@ -7,8 +7,7 @@ OBJECTS := $(patsubst $(SRCDIR)/%.cpp,$(BUILD)/%.o,$(SOURCES))
 
 CXX      := $(DEVKITPRO)/devkitA64/bin/aarch64-none-elf-g++
 CXXFLAGS := -mcpu=cortex-a57+fp+simd+crypto -mtune=cortex-a57 \
-  -I$(DEVKITPRO)/libnx/include \
-  -I$(SRCDIR) \
+  -I$(DEVKITPRO)/libnx/include -I$(SRCDIR) \
   -O2 -Wall -std=c++17
 
 LDFLAGS := -L$(DEVKITPRO)/libnx/lib -lnx

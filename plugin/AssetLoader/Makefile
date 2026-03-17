@@ -1,9 +1,3 @@
-ifdef DEVKITPRO
-DEVKITPRO ?= $(DEVKITPRO)
-else
-$(error "Please set DEVKITPRO (z.B. source /opt/devkitpro/switchvars.sh)")
-endif
-
 BUILD   := ../../build/AssetLoader
 TARGET  := $(BUILD)/AssetLoader
 SRCDIR  := source
@@ -21,11 +15,12 @@ CXXFLAGS := -mcpu=cortex-a57+fp+simd+crypto -mtune=cortex-a57 \
   -I$(SRCDIR) \
   -O2 -Wall -std=c++17 -fPIC
 
-LDFLAGS := -L$(DEVKITPRO)/libnx/lib -L$(DEVKITPRO)/portlibs/switch/lib -lcurl -lnx
+LDFLAGS := -L$(DEVKITPRO)/libnx/lib -L$(DEVKITPRO)/portlibs/switch/lib -lcurl -lz -lnx \
+  -Wl,-T$(DEVKITPRO)/libnx/switch.armv8.ld
 
 .PHONY: all clean dirs
 
-all: dirs $(TARGET).bin
+all: dirs $(TARGET).nro
 
 dirs:
 	@mkdir -p $(BUILD)
@@ -34,8 +29,11 @@ $(BUILD)/%.o : $(SRCDIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(TARGET).bin: $(OBJECTS)
+$(TARGET).elf: $(OBJECTS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
+
+$(TARGET).nro: $(TARGET).elf
+	nxlink -s 0x010000000000100D $< -o $@
 
 clean:
 	rm -rf $(BUILD)

@@ -1,3 +1,9 @@
+ifdef DEVKITPRO
+DEVKITPRO ?= $(DEVKITPRO)
+else
+$(error "Please set DEVKITPRO (z.B. source /opt/devkitpro/switchvars.sh)")
+endif
+
 BUILD   := ../../build/AssetLoader
 TARGET  := $(BUILD)/AssetLoader
 SRCDIR  := source
@@ -5,22 +11,17 @@ SRCDIR  := source
 SOURCES := $(shell find $(SRCDIR) -type f -name '*.cpp')
 OBJECTS := $(patsubst $(SRCDIR)/%.cpp, $(BUILD)/%.o, $(SOURCES))
 
-# Benutze explizit devkitA64-Compiler, nicht das System-g++
-ifeq ($(DEVKITPRO),)
-$(error "Please source your devkitPro environment (z.B. source /opt/devkitpro/switchvars.sh)!")
-endif
-
 CXX     := $(DEVKITPRO)/devkitA64/bin/aarch64-none-elf-g++
 CC      := $(DEVKITPRO)/devkitA64/bin/aarch64-none-elf-gcc
 STRIP   := $(DEVKITPRO)/devkitA64/bin/aarch64-none-elf-strip
 
 CXXFLAGS := -mcpu=cortex-a57+fp+simd+crypto -mtune=cortex-a57 \
+  -I$(DEVKITPRO)/libnx/include \
   -I$(DEVKITPRO)/portlibs/switch/include \
   -I$(SRCDIR) \
   -O2 -Wall -std=c++17 -fPIC
 
-# Linker NUR curl & Portlibs, KEIN libnx, KEIN SDL2, KEIN ImGui!
-LDFLAGS := -L$(DEVKITPRO)/portlibs/switch/lib -lcurl
+LDFLAGS := -L$(DEVKITPRO)/libnx/lib -L$(DEVKITPRO)/portlibs/switch/lib -lcurl -lnx
 
 .PHONY: all clean dirs
 

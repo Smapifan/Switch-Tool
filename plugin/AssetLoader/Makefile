@@ -8,7 +8,8 @@ OBJECTS := $(patsubst $(SRCDIR)/%.cpp,$(BUILD)/%.o,$(SOURCES))
 CXX     := aarch64-linux-gnu-g++
 CC      := aarch64-linux-gnu-gcc
 
-CXXFLAGS := -I/usr/include/curl \
+CXXFLAGS := -I/usr/include \
+  -I/usr/include/curl \
   -I$(SRCDIR) \
   -O2 -Wall -std=c++17
 

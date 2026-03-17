@@ -6,11 +6,11 @@ SOURCES := $(wildcard $(SRCDIR)/*.cpp)
 OBJECTS := $(patsubst $(SRCDIR)/%.cpp,$(BUILD)/%.o,$(SOURCES))
 
 CXX      := aarch64-linux-gnu-g++
-CXXFLAGS := -I/usr/include -I/usr/include/curl \
+CXXFLAGS := -I/usr/aarch64-linux-gnu/include -I/usr/aarch64-linux-gnu/include/curl \
 	-I$(SRCDIR) \
 	-O2 -Wall -std=c++17
 
-LDFLAGS  := -lcurl
+LDFLAGS  := -L/usr/aarch64-linux-gnu/lib -lcurl
 
 .PHONY: all clean dirs
 

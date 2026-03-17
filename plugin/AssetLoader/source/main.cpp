@@ -1,4 +1,3 @@
-#include <sys/select.h>
 #include <curl/curl.h>
 #include <sys/stat.h>
 #include <cstdio>
@@ -25,6 +24,7 @@ static std::string readFile(const std::string& path) {
     fread(&buf[0], 1, buf.size(), f); fclose(f);
     return buf;
 }
+
 static std::string extractVersion(const std::string& txt) {
     const char* key = "Version:";
     size_t pos = txt.find(key);
@@ -101,6 +101,7 @@ int main() {
             curl_easy_perform(curl); curl_easy_cleanup(curl);
         }
         fclose(fp);
+
         // TODO: ZIP-Entpacken
 
         // Version.txt schreiben mit aktuellem Timestamp

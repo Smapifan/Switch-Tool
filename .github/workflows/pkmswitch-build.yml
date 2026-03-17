@@ -1,10 +1,10 @@
-name: Build PKMswitch bundle
+name: Build PKMswitch bundle (Homebrew)
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
   workflow_dispatch:
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Build Main PKMswitch NRO
+      # MAIN PKMswitch NRO
       - name: Preflight source check (Main)
         run: |
           if [ ! -f source/main.cpp ]; then
@@ -36,7 +36,7 @@ jobs:
           make clean
           make
 
-      # Build AssetLoader bin
+      # AssetLoader Plugin (nur für Homebrew-Version, optional)
       - name: Preflight plugin check
         run: |
           if [ ! -f plugin/AssetLoader/source/main.cpp ]; then
@@ -53,7 +53,7 @@ jobs:
           make -C plugin/AssetLoader clean
           make -C plugin/AssetLoader
 
-      # Build pokemon-id-exporter NRO
+      # pokemon-id-exporter NRO
       - name: Preflight Exporter check
         run: |
           if [ ! -f pokemon-id-exporter/source/main.cpp ]; then
@@ -70,7 +70,6 @@ jobs:
           make -C pokemon-id-exporter clean
           make -C pokemon-id-exporter
 
-      # Collect all build outputs
       - name: Collect outputs
         run: |
           mkdir -p Release

@@ -5,16 +5,20 @@
 #include <ctime>
 #include <string>
 
-// Remote-Info
-static constexpr const char* REMOTE_VERSION_URL = "https://raw.githubusercontent.com/Smapifan/Switch-Tool/main/assets/Version.txt";
-static constexpr const char* REMOTE_ASSETS_ZIP_URL = "https://github.com/Smapifan/Switch-Tool/releases/latest/download/assets.zip";
+// Remote URLs
+static constexpr const char* REMOTE_VERSION_URL =
+    "https://raw.githubusercontent.com/Smapifan/Switch-Tool/main/assets/Version.txt";
+static constexpr const char* REMOTE_ASSETS_ZIP_URL =
+    "https://github.com/Smapifan/Switch-Tool/releases/latest/download/assets.zip";
 
+// Rekursive Erstellung von Verzeichnissen
 static void mkdirp(const std::string& path) {
     for (size_t i = 1; i <= path.size(); ++i)
         if (i == path.size() || path[i] == '/')
             mkdir(path.substr(0,i).c_str(), 0777);
 }
 
+// Einfaches Datei-Lesen, liefert gesamte Datei als String
 static std::string readFile(const std::string& path) {
     FILE* f = fopen(path.c_str(), "rb");
     if (!f) return {};
@@ -25,6 +29,8 @@ static std::string readFile(const std::string& path) {
     fread(&buf[0], 1, buf.size(), f); fclose(f);
     return buf;
 }
+
+// Extrahiert "Version:" aus Text
 static std::string extractVersion(const std::string& txt) {
     const char* key = "Version:";
     size_t pos = txt.find(key);
@@ -37,6 +43,8 @@ static std::string extractVersion(const std::string& txt) {
     while (!ver.empty() && (ver.back() == ' ' || ver.back() == '\r')) ver.pop_back();
     return ver;
 }
+
+// Extrahiert "Published on:" aus Text
 static std::string extractPublished(const std::string& txt) {
     const char* key = "Published on:";
     size_t pos = txt.find(key);
@@ -49,11 +57,15 @@ static std::string extractPublished(const std::string& txt) {
     while (!pub.empty() && (pub.back() == ' ' || pub.back() == '\r')) pub.pop_back();
     return pub;
 }
+
+// Für cURL String-In-Memory
 static size_t curlWriteStr(char* ptr, size_t sz, size_t nm, void* ud) {
     std::string* s = reinterpret_cast<std::string*>(ud);
     s->append(ptr, sz * nm);
     return sz * nm;
 }
+
+// Für cURL Datei-Download
 static size_t curlWriteFile(char* ptr, size_t sz, size_t nm, void* ud) {
     FILE* fp = reinterpret_cast<FILE*>(ud);
     return fwrite(ptr, sz, nm, fp);
@@ -65,7 +77,7 @@ int main() {
     std::string verPath   = assetsDir + "/Version.txt";
     std::string localTxt  = readFile(verPath);
 
-    // Version holen
+    // --- Remote-Version holen ---
     std::string remoteTxt;
     curl_global_init(CURL_GLOBAL_DEFAULT);
     CURL* curl = curl_easy_init();
@@ -101,15 +113,17 @@ int main() {
             curl_easy_perform(curl); curl_easy_cleanup(curl);
         }
         fclose(fp);
-        // TODO: ZIP-Entpacken
 
-        // Version.txt schreiben mit aktuellem Timestamp
+        // TODO: Entpacken assets.zip (optional: miniz, libzip ...)
+
+        // Version.txt aktualisieren mit Timestamp
         time_t now = time(nullptr);
         struct tm* t = localtime(&now);
         char ts[64];
         snprintf(ts, sizeof(ts), "%04d/%02d/%02d/%02d/%02d/%02d",
             t->tm_year+1900, t->tm_mon+1, t->tm_mday,
             t->tm_hour, t->tm_min, t->tm_sec);
+
         FILE* vf = fopen(verPath.c_str(), "w");
         if (vf) {
             fprintf(vf, "Version: %s\nPublished on: %s\nDownloaded on: %s\n",

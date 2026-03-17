@@ -1,31 +1,28 @@
-BUILD   := ../../build/AssetLoader
-TARGET  := $(BUILD)/AssetLoader
-SRCDIR  := source
+BUILD    := build
+TARGET   := $(BUILD)/AssetLoader
+SRCDIR   := source
 
-SOURCES := $(wildcard $(SRCDIR)/*.cpp)
-OBJECTS := $(patsubst $(SRCDIR)/%.cpp,$(BUILD)/%.o,$(SOURCES))
+SOURCES  := $(wildcard $(SRCDIR)/*.cpp)
+OBJECTS  := $(patsubst $(SRCDIR)/%.cpp, $(BUILD)/%.o, $(SOURCES))
 
-CXX      := aarch64-linux-gnu-g++
-# Den Pfad anpassen, sobald find im CI curl.h gefunden hat!
-CXXFLAGS := -I/usr/aarch64-linux-gnu/include -I/usr/aarch64-linux-gnu/include/curl -I$(SRCDIR) -O2 -Wall -std=c++17
-LDFLAGS  := -L/usr/aarch64-linux-gnu/lib -lcurl
+CXXFLAGS ?= -O2 -Wall -std=c++17
+LDFLAGS  ?= -lcurl
 
-.PHONY: all clean dirs
+.PHONY: all clean
 
-all: dirs $(TARGET).bin
+all: $(BUILD) $(TARGET).bin
 
-dirs:
-	@mkdir -p $(BUILD)
+$(BUILD):
+	mkdir -p $(BUILD)
 
-$(BUILD)/%.o : $(SRCDIR)/%.cpp
-	@mkdir -p $(dir $@)
+$(BUILD)/%.o: $(SRCDIR)/%.cpp | $(BUILD)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(TARGET).elf: $(OBJECTS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 $(TARGET).bin: $(TARGET).elf
-	aarch64-linux-gnu-objcopy -O binary $< $@
+	objcopy -O binary $< $@
 
 clean:
 	rm -rf $(BUILD)

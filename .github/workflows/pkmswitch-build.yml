@@ -1,4 +1,4 @@
-name: Build PKMswitch bundle (Homebrew)
+name: Build PKMswitch bundle (Homebrew & IDs-Exporter)
 
 on:
   push:
@@ -19,34 +19,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Preflight source check (Main)
-        run: |
-          if [ ! -f source/main.cpp ]; then
-            echo "[CI] ERROR: source/main.cpp nicht gefunden!"
-            exit 1
-          fi
-          if ! grep -q 'int main' source/main.cpp; then
-            echo "[CI] ERROR: Kein Entry Point in source/main.cpp!"
-            exit 1
-          fi
-
-      - name: Build PKMswitch NRO
+      - name: Build main PKMswitch NRO
         run: |
           make clean
           make
 
-      - name: Preflight Exporter check
-        run: |
-          if [ ! -f pokemon-id-exporter/source/main.cpp ]; then
-            echo "[CI] ERROR: pokemon-id-exporter/source/main.cpp nicht gefunden!"
-            exit 1
-          fi
-          if ! grep -q 'int main' pokemon-id-exporter/source/main.cpp; then
-            echo "[CI] ERROR: Kein Entry Point in pokemon-id-exporter/source/main.cpp!"
-            exit 1
-          fi
-
-      - name: Build pokemon-id-exporter NRO
+      - name: Build IDs-Exporter NRO
         run: |
           make -C pokemon-id-exporter clean
           make -C pokemon-id-exporter
@@ -54,18 +32,8 @@ jobs:
       - name: Collect outputs
         run: |
           mkdir -p Release
-          if [ -f build/PKMswitch.nro ]; then
-            cp build/PKMswitch.nro Release/
-          else
-            echo "Main NRO build fehlgeschlagen!"
-            exit 1
-          fi
-          if [ -f pokemon-id-exporter/build/pokemon-id-exporter.nro ]; then
-            cp pokemon-id-exporter/build/pokemon-id-exporter.nro Release/
-          else
-            echo "pokemon-id-exporter NRO fehlt!"
-            exit 1
-          fi
+          [ -f build/PKMswitch.nro ] && cp build/PKMswitch.nro Release/ || { echo "Main NRO fehlt"; exit 1; }
+          [ -f pokemon-id-exporter/build/pokemon-id-exporter.nro ] && cp pokemon-id-exporter/build/pokemon-id-exporter.nro Release/ || { echo "IDs-Exporter NRO fehlt"; exit 1; }
 
       - name: Zip bundle
         run: |

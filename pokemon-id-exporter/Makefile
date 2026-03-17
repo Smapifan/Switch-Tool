@@ -2,10 +2,10 @@ BUILD   := build
 TARGET  := $(BUILD)/pokemon-id-exporter
 SRCDIR  := source
 
-SOURCES := $(shell find $(SRCDIR) -type f -name '*.cpp')
-OBJECTS := $(patsubst $(SRCDIR)/%.cpp, $(BUILD)/%.o, $(SOURCES))
+SOURCES := $(wildcard $(SRCDIR)/*.cpp)
+OBJECTS := $(patsubst $(SRCDIR)/%.cpp,$(BUILD)/%.o,$(SOURCES))
 
-CXX     := $(DEVKITPRO)/devkitA64/bin/aarch64-none-elf-g++
+CXX      := $(DEVKITPRO)/devkitA64/bin/aarch64-none-elf-g++
 CXXFLAGS := -mcpu=cortex-a57+fp+simd+crypto -mtune=cortex-a57 \
   -I$(DEVKITPRO)/libnx/include \
   -I$(SRCDIR) \
@@ -15,7 +15,7 @@ LDFLAGS := -L$(DEVKITPRO)/libnx/lib -lnx
 
 .PHONY: all clean dirs
 
-all: dirs $(TARGET).elf $(TARGET).nro
+all: dirs $(TARGET).nro
 
 dirs:
 	@mkdir -p $(BUILD)

@@ -6,6 +6,8 @@
 #include <cstring>
 #include <ctime>
 #include <string>
+#include <vector>
+#include <map>    
 
 // --- Update & Version ---
 static constexpr const char* REMOTE_VERSION_URL =

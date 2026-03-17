@@ -5,24 +5,9 @@
 #include <cstring>
 #include <ctime>
 #include <string>
-#include <vector>
-#include <map>
 
-// --- Remote-Info ---
 static constexpr const char* REMOTE_VERSION_URL = "https://raw.githubusercontent.com/Smapifan/Switch-Tool/main/assets/Version.txt";
 static constexpr const char* REMOTE_ASSETS_ZIP_URL = "https://github.com/Smapifan/Switch-Tool/releases/latest/download/assets.zip";
-
-// Beispiel-Datenstruktur für Items & IDs (Dummy)
-struct ItemInfo {
-    int id;
-    std::string name;
-    std::map<std::string, std::string> translations;
-};
-std::map<std::string, std::vector<ItemInfo>> gameItems = {
-    {"firered",   { {1,"POKE BALL", {{"en","POKE BALL"},{"de","POKEBALL"}}}, {2,"POTION", {{"en","POTION"}}} }},
-    {"leafgreen", { {1,"POKE BALL", {{"en","POKE BALL"},{"de","POKEBALL"},{"fr","BALLE"}}}, {2,"POTION", {{"en","POTION"}}} }},
-    {"emerald",   { {1,"POKE BALL", {{"en","POKE BALL"}}} }}
-};
 
 static void mkdirp(const std::string& path) {
     for (size_t i = 1; i <= path.size(); ++i)
@@ -40,7 +25,6 @@ static std::string readFile(const std::string& path) {
     fread(&buf[0], 1, buf.size(), f); fclose(f);
     return buf;
 }
-
 static std::string extractVersion(const std::string& txt) {
     const char* key = "Version:";
     size_t pos = txt.find(key);
@@ -53,7 +37,6 @@ static std::string extractVersion(const std::string& txt) {
     while (!ver.empty() && (ver.back() == ' ' || ver.back() == '\r')) ver.pop_back();
     return ver;
 }
-
 static std::string extractPublished(const std::string& txt) {
     const char* key = "Published on:";
     size_t pos = txt.find(key);
@@ -66,26 +49,23 @@ static std::string extractPublished(const std::string& txt) {
     while (!pub.empty() && (pub.back() == ' ' || pub.back() == '\r')) pub.pop_back();
     return pub;
 }
-
 static size_t curlWriteStr(char* ptr, size_t sz, size_t nm, void* ud) {
     std::string* s = reinterpret_cast<std::string*>(ud);
     s->append(ptr, sz * nm);
     return sz * nm;
 }
-
 static size_t curlWriteFile(char* ptr, size_t sz, size_t nm, void* ud) {
     FILE* fp = reinterpret_cast<FILE*>(ud);
     return fwrite(ptr, sz, nm, fp);
 }
 
-int main(int argc, char* argv[]) {
-    mkdirp("assets/IDs");
-
+int main() {
+    mkdirp("assets");
     std::string assetsDir = "assets";
     std::string verPath   = assetsDir + "/Version.txt";
     std::string localTxt  = readFile(verPath);
 
-    // --- Remote Version laden ---
+    // Version holen
     std::string remoteTxt;
     curl_global_init(CURL_GLOBAL_DEFAULT);
     CURL* curl = curl_easy_init();
@@ -107,7 +87,7 @@ int main(int argc, char* argv[]) {
         || localVer != remoteVer || localPub != remotePub;
 
     if (update) {
-        // Download assets.zip
+        // assets.zip herunterladen
         std::string zipPath = assetsDir + "_update.zip";
         FILE* fp = fopen(zipPath.c_str(), "wb");
         if (!fp) { printf("Cannot write temp file.\n"); return 1; }
@@ -121,55 +101,23 @@ int main(int argc, char* argv[]) {
             curl_easy_perform(curl); curl_easy_cleanup(curl);
         }
         fclose(fp);
-
         // TODO: ZIP-Entpacken
-        // Hier könntest du mit miniz oder libzip usw. das Archiv entpacken
 
         // Version.txt schreiben mit aktuellem Timestamp
         time_t now = time(nullptr);
         struct tm* t = localtime(&now);
         char ts[64];
         snprintf(ts, sizeof(ts), "%04d/%02d/%02d/%02d/%02d/%02d",
-                 t->tm_year + 1900, t->tm_mon+1, t->tm_mday,
-                 t->tm_hour, t->tm_min, t->tm_sec);
-
+            t->tm_year+1900, t->tm_mon+1, t->tm_mday,
+            t->tm_hour, t->tm_min, t->tm_sec);
         FILE* vf = fopen(verPath.c_str(), "w");
         if (vf) {
             fprintf(vf, "Version: %s\nPublished on: %s\nDownloaded on: %s\n",
-                    remoteVer.c_str(), remotePub.c_str(), ts);
+                remoteVer.c_str(), remotePub.c_str(), ts);
             fclose(vf);
         }
         remove(zipPath.c_str());
     }
-
-    // --- IDs exportieren nach assets/IDs/ ---
-    for (const auto& game : gameItems) {
-        std::string gameName = game.first;
-        for (const auto& item : game.second) {
-            // Jede Sprache separat speichern
-            for (const auto& trans : item.translations) {
-                std::string lang = trans.first;
-                std::string fname = gameName;
-                if (lang != "en") fname += "_" + lang;
-                std::string idFile = assetsDir + "/IDs/" + fname + ".txt";
-                FILE* outf = fopen(idFile.c_str(), "a");
-                if (outf) {
-                    fprintf(outf, "%d\t%s\n", item.id, trans.second.c_str());
-                    fclose(outf);
-                }
-            }
-            // Englisch als Fallback
-            if (item.translations.count("en") == 0) {
-                std::string idFile = assetsDir + "/IDs/" + gameName + ".txt";
-                FILE* outf = fopen(idFile.c_str(), "a");
-                if (outf) {
-                    fprintf(outf, "%d\t%s\n", item.id, item.name.c_str());
-                    fclose(outf);
-                }
-            }
-        }
-    }
-
     curl_global_cleanup();
     return 0;
 }

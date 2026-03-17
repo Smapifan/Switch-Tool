@@ -1,19 +1,18 @@
-BUILD    := ../../build/AssetLoader
-TARGET   := $(BUILD)/AssetLoader
-SRCDIR   := source
+BUILD   := ../../build/AssetLoader
+TARGET  := $(BUILD)/AssetLoader
+SRCDIR  := source
 
-SOURCES  := $(wildcard $(SRCDIR)/*.cpp)
-OBJECTS  := $(patsubst $(SRCDIR)/%.cpp, $(BUILD)/%.o, $(SOURCES))
+SOURCES := $(wildcard $(SRCDIR)/*.cpp)
+OBJECTS := $(patsubst $(SRCDIR)/%.cpp,$(BUILD)/%.o,$(SOURCES))
 
-CXX      := $(DEVKITPRO)/devkitA64/bin/aarch64-none-elf-g++
-CC       := $(DEVKITPRO)/devkitA64/bin/aarch64-none-elf-gcc
+CXX     := aarch64-linux-gnu-g++
+CC      := aarch64-linux-gnu-gcc
 
-CXXFLAGS := -mcpu=cortex-a57+fp+simd+crypto -mtune=cortex-a57 \
-  -I$(DEVKITPRO)/portlibs/switch/include \
+CXXFLAGS := -I/usr/include/curl \
   -I$(SRCDIR) \
-  -O2 -Wall -std=c++17 -fPIC
+  -O2 -Wall -std=c++17
 
-LDFLAGS  := -L$(DEVKITPRO)/portlibs/switch/lib -lcurl -lz
+LDFLAGS := -lcurl
 
 .PHONY: all clean dirs
 
@@ -22,8 +21,7 @@ all: dirs $(TARGET).bin
 dirs:
 	@mkdir -p $(BUILD)
 
-# Jetzt von source/*.cpp zu build/*.o
-$(BUILD)/%.o: $(SRCDIR)/%.cpp
+$(BUILD)/%.o : $(SRCDIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
@@ -31,7 +29,7 @@ $(TARGET).elf: $(OBJECTS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 $(TARGET).bin: $(TARGET).elf
-	aarch64-none-elf-objcopy -O binary $< $@
+	aarch64-linux-gnu-objcopy -O binary $< $@
 
 clean:
 	rm -rf $(BUILD)

@@ -1,9 +1,9 @@
 BUILD   := ../../build/AssetLoader
 TARGET  := $(BUILD)/AssetLoader
-SRCDIR  := source
+SRCDIR  := .
 
-SOURCES := $(shell find $(SRCDIR) -type f -name '*.cpp')
-OBJECTS := $(patsubst $(SRCDIR)/%.cpp, $(BUILD)/%.o, $(SOURCES))
+SOURCES := main.cpp
+OBJECTS := $(addprefix $(BUILD)/, $(SOURCES:.cpp=.o))
 
 CXX     := $(DEVKITPRO)/devkitA64/bin/aarch64-none-elf-g++
 CC      := $(DEVKITPRO)/devkitA64/bin/aarch64-none-elf-gcc
@@ -22,7 +22,7 @@ all: dirs $(TARGET).elf
 dirs:
 	@mkdir -p $(BUILD)
 
-$(BUILD)/%.o : $(SRCDIR)/%.cpp
+$(BUILD)/%.o : %.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 

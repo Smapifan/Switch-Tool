@@ -9,10 +9,7 @@
 #include <sys/stat.h>
 
 #include "i18n.hpp"
-#include "plugin_check.hpp"
 #include "app_state.hpp"
-#include "asset_loader.hpp"
-#include "ui/screen_plugin_error.hpp"
 #include "ui/screen_terms.hpp"
 #include "ui/screen_applet.hpp"
 #include "ui/screen_user.hpp"

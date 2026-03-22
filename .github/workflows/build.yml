@@ -1,10 +1,10 @@
-name: Build PKMswitch bundle
+name: Build PKMswitch bundle (Homebrew & IDs-Exporter)
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master, build]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master, build]
   workflow_dispatch:
 
 jobs:
@@ -19,22 +19,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build bundle (no sdmc layout)
+      - name: Build main PKMswitch NRO
         run: |
-          chmod +x ci/dist.sh
-          ./ci/dist.sh
+          make clean
+          make
+
+      - name: Build IDs-Exporter NRO
+        run: |
+          make -C pokemon-id-exporter clean
+          make -C pokemon-id-exporter
+
+      - name: Collect outputs
+        run: |
+          mkdir -p Release
+          [ -f build/PKMswitch.nro ] && cp build/PKMswitch.nro Release/ || { echo "Main NRO fehlt"; exit 1; }
+          [ -f pokemon-id-exporter/build/pokemon-id-exporter.nro ] && cp pokemon-id-exporter/build/pokemon-id-exporter.nro Release/ || { echo "IDs-Exporter NRO fehlt"; exit 1; }
 
       - name: Zip bundle
         run: |
-          set -eux
-          mkdir -p Release
-          ZIP_NAME="PKMswitch_${GITHUB_SHA}.zip"
-          (cd dist && zip -r "../Release/${ZIP_NAME}" PKMswitch)
-          ls -la Release
+          cd Release
+          zip PKMswitch_bundle.zip *
+          ls -la
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: PKMswitch-bundle
-          path: Release/*.zip
+          path: Release/PKMswitch_bundle.zip
           if-no-files-found: error

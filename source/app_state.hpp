@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
 #include <cstdint>
-#include "plugin_check.hpp"
 #include "games.hpp"
 
 /**

@@ -2,9 +2,9 @@ name: Build PKMswitch bundle (Homebrew & IDs-Exporter)
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, build]
   pull_request:
-    branches: [main, master]
+    branches: [main, master, build]
   workflow_dispatch:
 
 jobs:
